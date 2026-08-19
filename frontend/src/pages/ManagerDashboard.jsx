@@ -5,7 +5,7 @@ import { Users, CheckCircle, XCircle, Star, QrCode, TrendingUp, TrendingDown, Tr
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSocket } from '../components/SocketContext';
 import jsQR from 'jsqr';
-
+import { Scanner } from '@yudiel/react-qr-scanner';
 const api = axios.create();
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
@@ -393,18 +393,18 @@ const LiveAttendance = () => {
             </select>
             
             <div className="space-y-4">
-              <div className="relative">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  capture="environment" 
-                  onChange={handleImageUpload}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                />
-                <div className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20 flex justify-center items-center gap-2 cursor-pointer">
-                  <Camera size={16} /> Tap to Scan QR (Native Camera)
+              {showScanner ? (
+                <div className="relative rounded-xl overflow-hidden bg-black border-2 border-amber-500 max-w-sm mx-auto">
+                  <Scanner onScan={(result) => handleScan(result[0].rawValue)} onError={(e) => setCameraError('Camera error: ' + e?.message)} />
+                  <button onClick={() => setShowScanner(false)} className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full hover:bg-red-600 z-50">
+                    <X size={16} />
+                  </button>
                 </div>
-              </div>
+              ) : (
+                <div onClick={() => setShowScanner(true)} className="w-full py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20 flex justify-center items-center gap-2 cursor-pointer">
+                  <Camera size={16} /> Open Live Camera Scanner
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <input type="text" value={qrRoll} onChange={e=>setQrRoll(e.target.value)} placeholder="Or manually type roll number" className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
                 <button onClick={() => handleScan(qrRoll)} className="py-2 px-4 bg-slate-800 text-white font-bold rounded-xl text-xs hover:bg-slate-700">Submit</button>
