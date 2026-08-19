@@ -1,0 +1,3617 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodBack — Premium Mess Management & Waste Prediction System</title>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+:root {
+  --green: #10b981;
+  --green-dark: #059669;
+  --green-light: #ecfdf5;
+  --green-mid: #a7f3d0;
+  
+  --amber: #f59e0b;
+  --amber-light: #fffbeb;
+  --amber-mid: #fde68a;
+  --amber-dark: #b45309;
+  
+  --red: #ef4444;
+  --red-light: #fef2f2;
+  --red-mid: #fca5a5;
+  --red-dark: #b91c1c;
+  
+  --blue: #3b82f6;
+  --blue-light: #eff6ff;
+  --blue-mid: #bfdbfe;
+  --blue-dark: #1d4ed8;
+  
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --text: #0f172a;
+  --muted: #64748b;
+  --hint: #94a3b8;
+  
+  --radius: 16px;
+  --radius-sm: 10px;
+  --shadow: 0 10px 15px -3px rgba(15, 23, 42, 0.05), 0 4px 6px -4px rgba(15, 23, 42, 0.05);
+  --shadow-lg: 0 20px 25px -5px rgba(15, 23, 42, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.08);
+  --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  font-size: 15px;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+h1, h2, h3, h4, h5, h6, .logo, .metric-val {
+  font-family: 'Outfit', sans-serif;
+}
+
+/* Prototype Sandbox Controls */
+.sim-bar {
+  background: #0f172a;
+  color: #f1f5f9;
+  padding: 10px 20px;
+  font-size: 0.85rem;
+  display:flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+  z-index: 1000;
+  position: relative;
+  border-bottom: 2px solid var(--green);
+}
+.sim-bar strong {
+  color: var(--green);
+}
+.sim-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.sim-controls input, .sim-controls select {
+  background: #1e293b;
+  border: 1px solid #334155;
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  outline: none;
+  font-family: inherit;
+}
+.sim-btn {
+  background: #334155;
+  border: none;
+  color: #fff;
+  padding: 5px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: var(--transition);
+  font-size: 0.8rem;
+}
+.sim-btn:hover {
+  background: #475569;
+}
+.sim-btn.danger {
+  background: var(--red-dark);
+}
+.sim-btn.danger:hover {
+  background: var(--red);
+}
+
+/* LOGIN SYSTEM */
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - 50px);
+  padding: 24px;
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 100%;
+  max-width: 440px;
+  padding: 40px 32px;
+  text-align: center;
+  transition: var(--transition);
+}
+.login-logo {
+  font-size: 2.2rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.login-logo span {
+  color: var(--green);
+}
+.login-subtitle {
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 32px;
+}
+.role-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 10px;
+  margin-bottom: 24px;
+}
+.role-tab {
+  background: none;
+  border: none;
+  padding: 10px;
+  font-size: 0.87rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: var(--transition);
+  font-family: inherit;
+}
+.role-tab.active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+.form-group {
+  margin-bottom: 20px;
+  text-align: left;
+}
+.form-label {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #f8fafc;
+  outline: none;
+  transition: var(--transition);
+}
+.form-input:focus {
+  border-color: var(--green);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.95rem;
+  font-family: inherit;
+  background: #f8fafc;
+  outline: none;
+  cursor: pointer;
+}
+.login-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--green);
+  border: none;
+  color: #fff;
+  font-weight: 600;
+  font-size: 1rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+  margin-top: 10px;
+}
+.login-btn:hover {
+  background: var(--green-dark);
+  transform: translateY(-1px);
+}
+.login-demo-helper {
+  margin-top: 20px;
+  font-size: 0.8rem;
+  color: var(--hint);
+}
+
+/* APP WRAPPER */
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* NAV */
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  height: 64px;
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.logo {
+  font-size: 1.4rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+}
+.logo span {
+  color: var(--green);
+}
+.nav-tabs {
+  display: flex;
+  gap: 8px;
+}
+.nav-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 50px;
+  border: 1px solid transparent;
+  font-size: 0.87rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--muted);
+  background: none;
+  font-family: inherit;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.nav-tab svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.nav-tab.active {
+  background: var(--green-light);
+  color: var(--green-dark);
+  border-color: var(--green-mid);
+  font-weight: 600;
+}
+.nav-tab:hover:not(.active) {
+  background: #f1f5f9;
+  color: var(--text);
+}
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.user-badge {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--green-light);
+  color: var(--green-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.logout-btn {
+  background: none;
+  border: 1px solid var(--border);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+  font-weight: 500;
+  color: var(--muted);
+}
+.logout-btn:hover {
+  background: var(--red-light);
+  color: var(--red);
+  border-color: var(--red-mid);
+}
+
+/* PAGES */
+.page {
+  display: none;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  width: 100%;
+}
+.page.active {
+  display: block;
+}
+
+/* PAGE HEADER */
+.page-header {
+  margin-bottom: 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.page-title {
+  font-size: 1.75rem;
+  font-weight: 800;
+  margin-bottom: 4px;
+}
+.page-sub {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* CARDS */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+}
+.card-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* METRIC GRID */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.metric {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  box-shadow: var(--shadow);
+}
+.metric-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+.metric-val {
+  font-weight: 800;
+  font-size: 2.2rem;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.metric-val.green { color: var(--green); }
+.metric-val.amber { color: var(--amber); }
+.metric-val.red { color: var(--red); }
+.metric-val.blue { color: var(--blue); }
+.metric-delta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+/* TWO COLS */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.three-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+.student-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 24px;
+}
+
+/* BADGES & PILLS */
+.badge {
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  background: var(--green-light);
+  color: var(--green-dark);
+  border-radius: 50px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  display: inline-block;
+}
+.badge.amber { background: var(--amber-light); color: var(--amber-dark); }
+.badge.red { background: var(--red-light); color: var(--red-dark); }
+.badge.blue { background: var(--blue-light); color: var(--blue-dark); }
+
+/* BANNERS */
+.alert-banner {
+  background: var(--amber-light);
+  border: 1px solid var(--amber-mid);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  color: var(--amber-dark);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 500;
+}
+.alert-banner.danger {
+  background: var(--red-light);
+  border-color: var(--red-mid);
+  color: var(--red-dark);
+}
+.alert-banner svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* ── STUDENT PORTAL ── */
+.meal-slot {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.meal-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.meal-slot-name {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.meal-slot-type {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.stars {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.star {
+  font-size: 32px;
+  cursor: pointer;
+  color: #cbd5e1;
+  transition: var(--transition);
+  user-select: none;
+  line-height: 1;
+}
+.star.lit {
+  color: var(--amber);
+}
+textarea.comment {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  resize: none;
+  background: #fff;
+  color: var(--text);
+  font-family: inherit;
+  outline: none;
+  transition: var(--transition);
+}
+textarea.comment:focus {
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.08);
+}
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: var(--green);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.btn-primary:hover {
+  background: var(--green-dark);
+  transform: translateY(-1px);
+}
+.btn-primary:disabled {
+  background: var(--hint);
+  cursor: not-allowed;
+  transform: none;
+}
+.success-banner {
+  display: none;
+  text-align: center;
+  padding: 16px;
+  background: var(--green-light);
+  border-radius: var(--radius-sm);
+  color: var(--green-dark);
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-top: 12px;
+  border: 1px solid var(--green-mid);
+}
+
+.meal-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.meal-tab {
+  padding: 8px 18px;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff;
+  color: var(--muted);
+  transition: var(--transition);
+}
+.meal-tab.active {
+  background: var(--green);
+  color: #fff;
+  border-color: var(--green);
+}
+
+/* ABSENCE COMPONENT */
+.absence-card {
+  border-left: 4px solid var(--green);
+}
+.absence-form-group {
+  margin-bottom: 16px;
+}
+.absence-meals-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+.absence-meal-box {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: var(--transition);
+  background: #f8fafc;
+}
+.absence-meal-box.selected {
+  border-color: var(--green-dark);
+  background: var(--green-light);
+  color: var(--green-dark);
+  font-weight: 600;
+}
+.absence-meal-box.locked {
+  border-color: var(--border);
+  background: #f1f5f9;
+  color: var(--hint);
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.absence-meal-time {
+  font-size: 0.72rem;
+  color: var(--muted);
+  display: block;
+  margin-top: 4px;
+}
+
+/* QR VISUAL PASS */
+.qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+.qr-code-box {
+  background: #fff;
+  border: 4px solid var(--text);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qr-status-indicator {
+  position: absolute;
+  bottom: -10px;
+  background: var(--green);
+  color: #fff;
+  padding: 4px 14px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 0.78rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  text-transform: uppercase;
+}
+.qr-status-indicator.absent {
+  background: var(--red);
+}
+
+/* SUBSCRIPTION & BILLING */
+.billing-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.billing-row:last-child {
+  border-bottom: none;
+}
+.billing-lbl {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.billing-val {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.payment-modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.6);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+}
+.payment-card {
+  background: #fff;
+  padding: 32px;
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 440px;
+  box-shadow: var(--shadow-lg);
+}
+.payment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.payment-header h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+.close-modal {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--hint);
+}
+
+/* ATTENDANCE GRID */
+.att-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 12px;
+}
+.att-day-label {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.att-dot {
+  aspect-ratio: 1;
+  border-radius: 6px;
+  background: #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.att-dot.present { background: var(--green-light); color: var(--green-dark); border: 1px solid var(--green-mid); }
+.att-dot.absent { background: var(--red-light); color: var(--red-dark); border: 1px solid var(--red-mid); }
+
+/* QR ENTRANCE SCANNER SIMULATOR */
+.scanner-viewfinder {
+  width: 100%;
+  height: 240px;
+  background: #020617;
+  border-radius: var(--radius-sm);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.scanner-laser {
+  position: absolute;
+  top: 50%;
+  left: 5%;
+  right: 5%;
+  height: 2px;
+  background: #10b981;
+  box-shadow: 0 0 12px #10b981;
+  animation: scan 2s infinite ease-in-out;
+}
+@keyframes scan {
+  0%, 100% { top: 20%; }
+  50% { top: 80%; }
+}
+.scanner-target {
+  width: 140px;
+  height: 140px;
+  border: 2px dashed #94a3b8;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 10;
+}
+.scanner-result {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  display: none;
+  animation: slideUp 0.3s ease;
+  font-weight: 500;
+}
+.scanner-result.success {
+  background: var(--green-light);
+  border: 1px solid var(--green-mid);
+  color: var(--green-dark);
+}
+.scanner-result.warning {
+  background: var(--amber-light);
+  border: 1px solid var(--amber-mid);
+  color: var(--amber-dark);
+}
+.scanner-result.error {
+  background: var(--red-light);
+  border: 1px solid var(--red-mid);
+  color: var(--red-dark);
+}
+
+/* FORECAST STYLING */
+.forecast-progress-bar {
+  background: #e2e8f0;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 6px 0;
+}
+.forecast-progress-fill {
+  height: 100%;
+  background: var(--green);
+  border-radius: 6px;
+  transition: width 0.6s ease;
+}
+
+/* LISTS & GENERAL */
+.table-responsive {
+  overflow-x: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.table th {
+  text-align: left;
+  padding: 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+}
+.table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+}
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+/* TAB CONTAINER FOR MANAGER */
+.manager-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  padding-bottom: 12px;
+}
+.m-tab-btn {
+  background: none;
+  border: none;
+  padding: 10px 20px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+}
+.m-tab-btn.active {
+  color: var(--green-dark);
+}
+.m-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -13px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--green);
+  border-radius: 3px 3px 0 0;
+}
+
+/* ALERTS LIST */
+.alert-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.alert-card {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #fff;
+  transition: var(--transition);
+}
+.alert-card.critical {
+  border-left: 4px solid var(--red);
+  background: var(--red-light);
+}
+.alert-card.warning {
+  border-left: 4px solid var(--amber);
+  background: var(--amber-light);
+}
+.alert-card.info {
+  border-left: 4px solid var(--blue);
+  background: var(--blue-light);
+}
+.alert-card.success {
+  border-left: 4px solid var(--green);
+  background: var(--green-light);
+}
+.alert-body {
+  flex-grow: 1;
+}
+.alert-title-text {
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 4px;
+}
+.alert-time {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* CHART CANVAS CONT */
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 250px;
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1050;
+  background: #1e293b;
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg);
+  font-weight: 500;
+  display: none;
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@media(max-width: 768px) {
+  .two-col, .three-col, .student-grid {
+    grid-template-columns: 1fr;
+  }
+  .nav {
+    flex-direction: column;
+    height: auto;
+    padding: 12px;
+    gap: 10px;
+  }
+  .nav-tabs {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- PROTOTYPE SANDBOX CONTROLS -->
+<div class="sim-bar" id="sandbox-bar">
+  <div>
+    ⚡ <strong>FoodBack Sandbox Simulator:</strong> Test different dates & cutoff times here!
+  </div>
+  <div class="sim-controls">
+    <label>Sim Date:
+      <input type="date" id="sim-date" value="2026-05-22" onchange="onSimDateChange()">
+    </label>
+    <label>Sim Time:
+      <input type="time" id="sim-time" value="09:30" onchange="onSimTimeChange()">
+    </label>
+    <button onclick="advanceDateSim()" class="sim-btn">➡️ Next Day</button>
+    <button onclick="triggerBudgetAlert()" class="sim-btn">Trigger Alert</button>
+    <button onclick="resetPrototypeDB()" class="sim-btn danger">Reset DB</button>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="toast" id="toast-notif">Toast message here</div>
+
+<!-- MAIN LAYOUT WRAPPER -->
+<div class="app-layout">
+  
+  <!-- LOGIN CONTAINER -->
+  <div id="page-login" class="login-container">
+    <div class="login-card">
+      <div class="login-logo">Food<span>Back</span></div>
+      <div class="login-subtitle">Smart Hostel Mess Portal & Waste Forecasting</div>
+      
+      <div class="role-tabs">
+        <button class="role-tab active" onclick="setLoginRole('student', this)">Student</button>
+        <button class="role-tab" onclick="setLoginRole('manager', this)">Manager</button>
+        <button class="role-tab" onclick="setLoginRole('admin', this)">Admin</button>
+      </div>
+
+      <!-- Student Input Form -->
+      <div id="login-form-student">
+        <div class="form-group">
+          <label class="form-label">Select Demo Student</label>
+          <select id="student-select" class="form-select" onchange="onStudentSelectChange()">
+            <!-- Prepopulated via JS -->
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" value="student123" placeholder="••••••••">
+        </div>
+      </div>
+
+      <!-- Manager Input Form -->
+      <div id="login-form-manager" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Manager ID</label>
+          <select id="manager-select" class="form-select">
+            <option value="mgr-101">MGR-101 (Hostel A Mess Manager)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" value="manager123" placeholder="••••••••">
+        </div>
+      </div>
+
+      <!-- Admin Input Form -->
+      <div id="login-form-admin" style="display:none;">
+        <div class="form-group">
+          <label class="form-label">Admin Email</label>
+          <input type="email" id="admin-email" class="form-input" value="admin@foodback.in">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Password</label>
+          <input type="password" class="form-input" value="admin123" placeholder="••••••••">
+        </div>
+      </div>
+
+      <button class="login-btn" onclick="executeLogin()">Sign In Securely</button>
+      <div class="login-demo-helper" id="login-helper-text">
+        Logged in student status will load dynamically. Default pass is <strong>student123</strong>.
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTHENTICATED SYSTEM CONTAINER -->
+  <div id="authenticated-app" style="display:none;">
+    
+    <!-- NAVIGATION BAR -->
+    <nav class="nav">
+      <div class="logo" onclick="goToHome()">Food<span>Back</span></div>
+      
+      <!-- Dynamic Tabs (Populated based on role) -->
+      <div class="nav-tabs" id="navbar-tabs">
+        <!-- Rendered by JS -->
+      </div>
+      
+      <div class="nav-right">
+        <div class="user-badge">
+          <div class="user-avatar" id="user-avatar-char">U</div>
+          <span id="user-display-name">Username</span>
+        </div>
+        <button class="logout-btn" onclick="executeLogout()">Sign Out</button>
+      </div>
+    </nav>
+
+    <!-- ==================== STUDENT DASHBOARD ==================== -->
+    <div id="view-student-dashboard" class="page">
+      <!-- Billing Alert Box if Dues Pending -->
+      <div id="student-billing-alert"></div>
+
+      <div class="page-header">
+        <div>
+          <div class="page-title" id="student-welcome-title">Welcome Back, Student!</div>
+          <div class="page-sub" id="student-welcome-subtitle">Mess Plan: Active · Hostel Room A-204</div>
+        </div>
+        <div>
+          <span class="badge" id="student-mess-status-badge">Active</span>
+        </div>
+      </div>
+
+      <div class="student-grid">
+        <!-- Left Side: Today's Menu & Absence -->
+        <div>
+          <!-- Today's Menu & Feedback Card -->
+          <div class="card">
+            <div class="card-title">
+              Today's Menu & Rate Meals
+              <span class="badge blue">Select slot to rate</span>
+            </div>
+            
+            <div class="meal-tabs">
+              <button class="meal-tab active" onclick="changeStudentFeedbackMeal('breakfast', this)">🌅 Breakfast</button>
+              <button class="meal-tab" onclick="changeStudentFeedbackMeal('lunch', this)">☀️ Lunch</button>
+              <button class="meal-tab" onclick="changeStudentFeedbackMeal('dinner', this)">🌙 Dinner</button>
+            </div>
+
+            <div id="student-feedback-menu-list">
+              <!-- Menu items generated here -->
+            </div>
+            
+            <div id="feedback-success-banner" class="success-banner">
+              ✓ Rating submitted! Your feedback has been sent directly to the kitchen.
+            </div>
+          </div>
+
+          <!-- Absence Management Card -->
+          <div class="card absence-card">
+            <div class="card-title">
+              Absence Management
+              <span class="badge red">Time-locked Cutoffs</span>
+            </div>
+            <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 16px;">
+              Marking absent predicts correct quantities for the kitchen. You can toggle absences for individual slots or set long leaves.
+            </p>
+
+            <div class="absence-form-group">
+              <label class="form-label">Choose Target Date</label>
+              <input type="date" id="absence-date-picker" class="form-input" style="max-width: 250px;" onchange="onAbsenceDatePickerChange()">
+            </div>
+
+            <div class="absence-form-group">
+              <label class="form-label">Single Meal Absence for Selected Date</label>
+              <div class="absence-meals-grid">
+                <div class="absence-meal-box" id="abs-box-breakfast" onclick="toggleAbsenceSlot('breakfast')">
+                  <strong>🌅 Breakfast</strong>
+                  <span class="absence-meal-time">Before 7:00 AM</span>
+                </div>
+                <div class="absence-meal-box" id="abs-box-lunch" onclick="toggleAbsenceSlot('lunch')">
+                  <strong>☀️ Lunch</strong>
+                  <span class="absence-meal-time">Before 10:00 AM</span>
+                </div>
+                <div class="absence-meal-box" id="abs-box-dinner" onclick="toggleAbsenceSlot('dinner')">
+                  <strong>🌙 Dinner</strong>
+                  <span class="absence-meal-time">Before 4:00 PM</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="absence-form-group" style="margin-top: 24px; border-top: 1px solid var(--border); padding-top: 20px;">
+              <label class="form-label">Or Request Multiple Days Leave</label>
+              <div style="display: flex; gap: 12px; margin-top: 10px; flex-wrap: wrap;">
+                <div>
+                  <label class="form-label" style="font-size: 0.75rem;">Start Date</label>
+                  <input type="date" id="multi-abs-start" class="form-input" style="width: 180px;">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 0.75rem;">End Date</label>
+                  <input type="date" id="multi-abs-end" class="form-input" style="width: 180px;">
+                </div>
+              </div>
+              <button class="btn-primary" style="margin-top: 16px; background: var(--text);" onclick="submitMultiDayLeave()">✓ Mark Multiple Days Absent</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: QR Entry Pass, Payment status, Recommendations -->
+        <div>
+          <!-- QR Mess Pass -->
+          <div class="card" style="text-align: center;">
+            <div class="card-title">Entrance QR pass</div>
+            <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 16px;">
+              Scan at the mess entrance to verify attendance.
+            </p>
+            <div class="qr-container">
+              <div class="qr-code-box">
+                <!-- SVG-based Mock QR Code -->
+                <svg id="student-qr-svg" width="160" height="160" viewBox="0 0 100 100" style="background:#fff;"></svg>
+                <div class="qr-status-indicator" id="student-qr-status-label">Present</div>
+              </div>
+              <div style="margin-top: 12px;">
+                <strong id="qr-student-name">Student Name</strong>
+                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 4px;" id="qr-student-roll">Roll No: 101</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subscription & Payment Details -->
+          <div class="card">
+            <div class="card-title">Mess Subscription & Billing</div>
+            <div class="billing-row">
+              <div class="billing-lbl">Join Date</div>
+              <div class="billing-val" id="sub-join-date">2026-01-10</div>
+            </div>
+            <div class="billing-row">
+              <div class="billing-lbl">Mess Fee Cycle</div>
+              <div class="billing-val">Monthly Subscription</div>
+            </div>
+            <div class="billing-row">
+              <div class="billing-lbl">Due Date</div>
+              <div class="billing-val" id="sub-due-date">2026-06-01</div>
+            </div>
+            <div class="billing-row">
+              <div class="billing-lbl">Status</div>
+              <div class="billing-val" id="sub-status-text">Paid</div>
+            </div>
+            
+            <button class="btn-primary" style="margin-top: 20px;" id="student-pay-dues-btn" onclick="openPaymentModal()">💳 Pay Dues / Renew Plan (₹2,999)</button>
+          </div>
+
+          <!-- AI recommendations & Complaint Box -->
+          <div class="card">
+            <div class="card-title">AI Mess Insights (Personalised)</div>
+            <p style="font-size: 0.86rem; color: #1e3a8a; background: var(--blue-light); padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid var(--blue-mid);">
+              💡 <strong>Best Mess Timing:</strong> Try dining between <strong>1:15 PM - 1:40 PM</strong>. Live counts show peak rush is usually 12:40 PM - 1:10 PM.
+            </p>
+            
+            <div class="form-group">
+              <label class="form-label">Hypothetical Complaints / Hygiene Tickets</label>
+              <select id="complaint-type" class="form-select" style="margin-bottom: 10px;">
+                <option value="food">Food Quality Issue</option>
+                <option value="hygiene">Hygiene / Cleanness Issue</option>
+                <option value="staff">Staff Behaviour</option>
+              </select>
+              <textarea id="complaint-text" class="comment" rows="2" placeholder="Write complaint details here..."></textarea>
+              <button class="btn-primary" style="background:#475569; margin-top: 10px; padding: 8px;" onclick="submitComplaint()">Submit Ticket</button>
+            </div>
+          </div>
+
+          <!-- Attendance history -->
+          <div class="card">
+            <div class="card-title">Attendance History (Current Month)</div>
+            <div style="font-size: 0.85rem; color: var(--muted); display:flex; justify-content:space-between; margin-bottom: 8px;">
+              <span>Total Turnout %: <strong id="student-att-percentage" style="color:var(--text)">92%</strong></span>
+              <span>Present/Absent Dots</span>
+            </div>
+            <div class="att-grid" id="student-attendance-dots-grid">
+              <!-- Dots rendered by JS -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== MANAGER DASHBOARD ==================== -->
+    <div id="view-manager-dashboard" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Mess Operations Dashboard</div>
+          <div class="page-sub">Hostel A Mess Control • Operational Panel</div>
+        </div>
+        <div>
+          <span class="badge blue" id="manager-current-meal-badge">Current Meal: Lunch</span>
+        </div>
+      </div>
+
+      <div class="manager-tabs">
+        <button class="m-tab-btn active" onclick="switchManagerTab('dashboard', this)">📊 Main Analytics</button>
+        <button class="m-tab-btn" onclick="switchManagerTab('scanner', this)">📷 QR Scanner Entrance</button>
+        <button class="m-tab-btn" onclick="switchManagerTab('feedback', this)">💬 Ratings & Complaints</button>
+        <button class="m-tab-btn" onclick="switchManagerTab('waste-tab', this)">🗑️ Waste Analytics</button>
+        <button class="m-tab-btn" onclick="switchManagerTab('menu', this)">🍴 Edit Menu</button>
+        <button class="m-tab-btn" onclick="switchManagerTab('staff', this)">👥 Staff Management</button>
+      </div>
+
+      <!-- Tab: Dashboard / Analytics -->
+      <div id="m-tab-dashboard" class="m-tab-content">
+        <!-- Real-Time AI & Operations Alerts -->
+        <div id="manager-alerts-container" style="margin-bottom: 24px; display: none;"></div>
+
+        <!-- Live count metrics -->
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Registered Students</div>
+            <div class="metric-val blue" id="stat-total-students">4</div>
+            <div class="metric-delta">active hostel accounts</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Meal predicted turnout</div>
+            <div class="metric-val green" id="stat-pred-count">0</div>
+            <div class="metric-delta">AI forecast count</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">marked absent today</div>
+            <div class="metric-val red" id="stat-absent-count">0</div>
+            <div class="metric-delta">Predictive food savings</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Actual Scanned entrance</div>
+            <div class="metric-val amber" id="stat-scanned-count">0</div>
+            <div class="metric-delta" id="stat-scanned-subtext">0 absent corrected</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Portions Recommendations -->
+          <div class="card">
+            <div class="card-title">Portion Recommendations for next meal</div>
+            <div id="manager-portion-recommendations-list">
+              <!-- Rendered via JS -->
+            </div>
+            <div style="margin-top: 16px; padding: 12px; background: var(--green-light); border-radius: var(--radius-sm); font-size: 0.85rem; color: var(--green-dark);">
+              💡 <strong>AI Suggestion:</strong> Turnout predictions are highly reliable. Adjust inventory purchases to prevent food waste.
+            </div>
+          </div>
+
+          <!-- Forecast graph -->
+          <div class="card">
+            <div class="card-title">7-Day predicted Attendance Attendance</div>
+            <div class="chart-container">
+              <canvas id="manager-forecast-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Factors of forecasting -->
+          <div class="card">
+            <div class="card-title">Forecasting Influence Factors</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+              <div style="padding:10px; background:#f8fafc; border-radius:8px;">
+                <span class="form-label" style="font-size:0.75rem;">Simulated Day</span>
+                <strong id="forecast-factor-day">Friday</strong>
+              </div>
+              <div style="padding:10px; background:#f8fafc; border-radius:8px;">
+                <span class="form-label" style="font-size:0.75rem;">Academic Period</span>
+                <span class="badge amber" style="margin-top:4px;">Exam Week (+12%)</span>
+              </div>
+              <div style="padding:10px; background:#f8fafc; border-radius:8px;">
+                <span class="form-label" style="font-size:0.75rem;">Weather Effect</span>
+                <span class="badge blue" style="margin-top:4px;">Sunny Turnout Normal</span>
+              </div>
+              <div style="padding:10px; background:#f8fafc; border-radius:8px;">
+                <span class="form-label" style="font-size:0.75rem;">Marked Absences</span>
+                <strong id="forecast-factor-absences">0 students</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dues Monitoring -->
+          <div class="card">
+            <div class="card-title">Fee cycles & Pending Dues</div>
+            <div class="table-responsive">
+              <table class="table" id="manager-dues-table">
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Due Date</th>
+                    <th>Balance</th>
+                    <th>Action Reminder</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Preloaded -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: QR Scanner Entrance Simulator -->
+      <div id="m-tab-scanner" class="m-tab-content" style="display:none;">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Mess entrance QR scanner Viewport</div>
+            <div class="scanner-viewfinder">
+              <div class="scanner-laser"></div>
+              <div class="scanner-target">
+                <!-- Icon representation of QR -->
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#64748b" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+              </div>
+            </div>
+            
+            <div class="form-group" style="margin-top:20px;">
+              <label class="form-label">Simulate Scanning Student Device</label>
+              <select id="scanner-simulate-student-select" class="form-select">
+                <!-- Options populated by JS -->
+              </select>
+            </div>
+            
+            <button class="btn-primary" onclick="simulateQRScan()">📷 Simulate QR Scan (Check entry)</button>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Scan Log Verification</div>
+            <div class="scanner-result" id="scan-feedback-box">
+              Verification details appear here...
+            </div>
+            
+            <div style="margin-top:20px;">
+              <div class="form-label">Entrance log (Last 10 scans)</div>
+              <div class="table-responsive">
+                <table class="table" style="font-size:0.8rem;">
+                  <thead>
+                    <tr>
+                      <th>Time</th>
+                      <th>Student</th>
+                      <th>Meal</th>
+                      <th>Audit Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="scanner-logs-body">
+                    <!-- Logs populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Feedback & Complaints -->
+      <div id="m-tab-feedback" class="m-tab-content" style="display:none;">
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">Weekly Feedback Average Ratings</div>
+            <div class="table-responsive">
+              <table class="table" id="manager-ratings-table">
+                <thead>
+                  <tr>
+                    <th>Meal Item</th>
+                    <th>Average Rating</th>
+                    <th>Submissions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- JS populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">Recent Tickets / Complaints</div>
+            <div class="alert-list" id="manager-complaints-list">
+              <!-- Complaint tickets populated via JS -->
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Recent Food Reviews & Comments</div>
+          <div class="table-responsive">
+            <table class="table" id="manager-feedback-comments-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Student</th>
+                  <th>Item</th>
+                  <th>Rating</th>
+                  <th>Comment</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- JS Populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Waste Analytics -->
+      <div id="m-tab-waste-tab" class="m-tab-content" style="display:none;">
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Waste Today</div>
+            <div class="metric-val red" id="waste-total-today-val">18.4 kg</div>
+            <div class="metric-delta">target is 15 kg</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Waste Cost Today</div>
+            <div class="metric-val red" id="waste-cost-today-val">₹920</div>
+            <div class="metric-delta">calculated @ ₹50/kg</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Avg Waste Rating Correlation</div>
+            <div class="metric-val amber">3.1 ★</div>
+            <div class="metric-delta">low rating = high waste</div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <!-- Left Column -->
+          <div>
+            <div class="card">
+              <div class="card-title">Log Daily Waste (kg)</div>
+              <div class="form-group">
+                <label class="form-label">Meal</label>
+                <select id="waste-log-meal" class="form-select">
+                  <option value="lunch">Lunch</option>
+                  <option value="dinner">Dinner</option>
+                  <option value="breakfast">Breakfast</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Menu Item</label>
+                <select id="waste-log-item" class="form-select">
+                  <option value="dal_rice">Dal Rice</option>
+                  <option value="sabji">Sabji</option>
+                  <option value="roti">Roti</option>
+                  <option value="salad">Salad</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Waste Amount (kg)</label>
+                <input type="number" id="waste-log-amount" class="form-input" placeholder="e.g. 5.5" step="0.1">
+              </div>
+              <button class="btn-primary" onclick="submitWasteLog()">Save Waste Log</button>
+            </div>
+
+            <div class="card" style="margin-top: 24px;">
+              <div class="card-title">Today's Waste Logs</div>
+              <div class="table-responsive">
+                <table class="table" id="manager-waste-today-table">
+                  <thead>
+                    <tr>
+                      <th>Meal</th>
+                      <th>Item</th>
+                      <th>Waste (kg)</th>
+                      <th>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <!-- JS Populated -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="card">
+            <div class="card-title">Waste Trend Chart</div>
+            <div class="chart-container">
+              <canvas id="manager-waste-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Export Section -->
+        <div class="card">
+          <div class="card-title">Export Operational Audit Reports</div>
+          <p style="font-size:0.85rem; color:var(--muted); margin-bottom:15px;">
+            Export system records into portable spreadsheets or files.
+          </p>
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button class="sim-btn" onclick="exportReport('csv')">📥 Export CSV Sheet</button>
+            <button class="sim-btn" onclick="exportReport('print')">🖨️ Print Attendance PDF Summary</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab: Menu Management -->
+      <div id="m-tab-menu" class="m-tab-content" style="display:none;">
+        <div class="card">
+          <div class="card-title">Menu Editor</div>
+          <p style="font-size:0.85rem; color:var(--muted); margin-bottom:20px;">
+            Modifying menu here updates student dashboards in real-time.
+          </p>
+          
+          <div class="form-group">
+            <label class="form-label">Select Meal Slot to edit</label>
+            <select id="menu-editor-slot" class="form-select" onchange="loadMenuEditorSlot()">
+              <option value="breakfast">Breakfast Slot</option>
+              <option value="lunch">Lunch Slot</option>
+              <option value="dinner">Dinner Slot</option>
+            </select>
+          </div>
+
+          <div id="menu-editor-items-container">
+            <!-- List of items to edit populated by JS -->
+          </div>
+
+          <button class="btn-primary" style="margin-top:20px; max-width: 250px;" onclick="saveMenuEdits()">✓ Save Menu Configuration</button>
+        </div>
+      </div>
+
+      <!-- Tab: Staff Management -->
+      <div id="m-tab-staff" class="m-tab-content" style="display:none;">
+        <div class="card">
+          <div class="card-title">Staff Allocation & Attendance</div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Staff Name</th>
+                  <th>Role</th>
+                  <th>Shift Time</th>
+                  <th>Status</th>
+                  <th>Duty Action</th>
+                </tr>
+              </thead>
+              <tbody id="manager-staff-table-body">
+                <!-- Populated via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== ADMIN DASHBOARD ==================== -->
+    <div id="view-admin-dashboard" class="page">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Admin Management System</div>
+          <div class="page-sub">Platform Control, Hostel Subscriptions, and SaaS Financials</div>
+        </div>
+        <div>
+          <span class="badge blue">SuperAdmin Portal</span>
+        </div>
+      </div>
+
+      <!-- Global Metrics -->
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">Active Hostels</div>
+          <div class="metric-val green" id="admin-hostels-count">3</div>
+          <div class="metric-delta">across Pune pilots</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Monthly Recurring Revenue (MRR)</div>
+          <div class="metric-val green" id="admin-mrr-val">₹12,997</div>
+          <div class="metric-delta">calculated billing cycle</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">System Active Accounts</div>
+          <div class="metric-val blue">340+</div>
+          <div class="metric-delta">students registered</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">SaaS Billing status</div>
+          <div class="metric-val green">100%</div>
+          <div class="metric-delta">active collections</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <!-- Hostel Pricing Tier Management -->
+        <div class="card">
+          <div class="card-title">Managed Hostel Subscriptions</div>
+          <div class="table-responsive">
+            <table class="table" id="admin-hostels-table">
+              <thead>
+                <tr>
+                  <th>Hostel</th>
+                  <th>Beds</th>
+                  <th>Sub Plan</th>
+                  <th>MRR Cost</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- JS Populated -->
+              </tbody>
+            </table>
+          </div>
+          <button class="btn-primary" style="margin-top:20px; max-width:240px;" onclick="openNewHostelModal()">➕ Register New Hostel</button>
+        </div>
+
+        <!-- SaaS Financial Chart -->
+        <div class="card">
+          <div class="card-title">SaaS MRR Projection Trends</div>
+          <div class="chart-container">
+            <canvas id="admin-financial-chart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing configuration -->
+      <div class="card">
+        <div class="card-title">Configured Pricing Tiers</div>
+        <div class="three-col">
+          <div style="background:#f8fafc; padding:20px; border-radius:12px; border:1px solid var(--border)">
+            <h3>Starter Plan</h3>
+            <p style="color:var(--muted); font-size:0.85rem; margin:8px 0 16px;">Up to 200 students mess limit</p>
+            <div style="font-size:1.6rem; font-weight:800; color:var(--green)">₹2,999<span style="font-size:0.8rem; color:var(--muted)">/mo</span></div>
+          </div>
+          <div style="background:var(--green-light); padding:20px; border-radius:12px; border:1px solid var(--green-mid)">
+            <h3>Growth Plan <span class="badge">Popular</span></h3>
+            <p style="color:var(--muted); font-size:0.85rem; margin:8px 0 16px;">Up to 600 students mess limit + analytics</p>
+            <div style="font-size:1.6rem; font-weight:800; color:var(--green-dark)">₹4,999<span style="font-size:0.8rem; color:var(--muted)">/mo</span></div>
+          </div>
+          <div style="background:#f8fafc; padding:20px; border-radius:12px; border:1px solid var(--border)">
+            <h3>Enterprise Plan</h3>
+            <p style="color:var(--muted); font-size:0.85rem; margin:8px 0 16px;">Unlimited students + AI forecasting</p>
+            <div style="font-size:1.6rem; font-weight:800; color:var(--green)">₹9,999<span style="font-size:0.8rem; color:var(--muted)">/mo</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="payment-modal" id="pay-modal">
+  <div class="payment-card">
+    <div class="payment-header">
+      <h3>🔒 Secure Mess Fee Checkout</h3>
+      <button class="close-modal" onclick="closePaymentModal()">×</button>
+    </div>
+    <div style="margin-bottom: 20px;">
+      <p style="font-size: 0.9rem; color: var(--muted);">Renewing Subscription for Roll Number <strong id="checkout-roll" style="color:var(--text)">101</strong></p>
+      <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-top: 10px; display: flex; justify-content: space-between;">
+        <span>Mess Subscription Fee</span>
+        <strong>₹2,999.00</strong>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">Payment Method</label>
+      <select class="form-select" id="payment-method-select">
+        <option value="upi">UPI ID (GooglePay / PhonePe)</option>
+        <option value="card">Credit / Debit Card</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="payment-input-container">
+      <label class="form-label" id="pay-input-lbl">Enter UPI ID</label>
+      <input type="text" id="pay-input-val" class="form-input" value="student@okaxis" placeholder="username@upi">
+    </div>
+
+    <button class="login-btn" onclick="processMockPayment()" id="pay-btn-submit">Process Renewal Dues</button>
+  </div>
+</div>
+
+<!-- NEW HOSTEL MODAL -->
+<div class="payment-modal" id="new-hostel-modal">
+  <div class="payment-card">
+    <div class="payment-header">
+      <h3>Register Hostel Institution</h3>
+      <button class="close-modal" onclick="closeNewHostelModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Institution Name</label>
+      <input type="text" id="h-name" class="form-input" placeholder="e.g. Symbiosis Hostel C">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Total Beds</label>
+      <input type="number" id="h-beds" class="form-input" placeholder="e.g. 300">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Active Mess Plan</label>
+      <select id="h-plan" class="form-select">
+        <option value="Starter">Starter Plan (₹2,999/mo)</option>
+        <option value="Growth">Growth Plan (₹4,999/mo)</option>
+        <option value="Enterprise">Enterprise Plan (₹9,999/mo)</option>
+      </select>
+    </div>
+    <button class="login-btn" onclick="saveNewHostel()">✓ Save Registration</button>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// DATABASE STATE & INITIALIZATION
+// ==========================================
+let students = [];
+let attendance = [];
+let feedback = [];
+let menu = {};
+let waste = [];
+let payments = [];
+let hostels = [];
+let complaints = [];
+let staff = [];
+
+// Default Initial Mock Data
+const DEFAULT_MENU = {
+  breakfast: [
+    {id:'poha', name:'Poha', type:'Main'},
+    {id:'chai', name:'Chai & Milk', type:'Beverage'},
+    {id:'bread', name:'Bread & Butter', type:'Side'},
+    {id:'fruit', name:'Banana', type:'Side'},
+  ],
+  lunch: [
+    {id:'dal_rice', name:'Dal Rice', type:'Main'},
+    {id:'sabji', name:'Sabji (Mixed Veg)', type:'Side'},
+    {id:'roti', name:'Roti', type:'Bread'},
+    {id:'salad', name:'Salad', type:'Side'},
+    {id:'sweet', name:'Gulab Jamun', type:'Sweet'},
+  ],
+  dinner: [
+    {id:'rice', name:'Jeera Rice', type:'Main'},
+    {id:'dal_makhni', name:'Dal Makhni', type:'Main'},
+    {id:'chapati', name:'Chapati', type:'Bread'},
+    {id:'raita', name:'Raita', type:'Side'},
+  ]
+};
+
+const DEFAULT_STUDENTS = [
+  {
+    rollNo: "101",
+    name: "Aarav Mehta",
+    email: "aarav.mehta@mitpune.edu.in",
+    hostelRoom: "A-204",
+    messId: "MESS-A",
+    joinDate: "2026-01-10",
+    messStartDate: "2026-05-01",
+    messDueDate: "2026-06-01",
+    paymentStatus: "Paid",
+    status: "Active",
+    attendanceRate: 92
+  },
+  {
+    rollNo: "102",
+    name: "Ishita Sharma",
+    email: "ishita.s@mitpune.edu.in",
+    hostelRoom: "A-309",
+    messId: "MESS-A",
+    joinDate: "2026-01-12",
+    messStartDate: "2026-05-01",
+    messDueDate: "2026-05-25", // Due in 3 days (relative to 2026-05-22)
+    paymentStatus: "Unpaid",
+    status: "Active",
+    attendanceRate: 78
+  },
+  {
+    rollNo: "103",
+    name: "Rohan Das",
+    email: "rohan.das@mitpune.edu.in",
+    hostelRoom: "B-108",
+    messId: "MESS-A",
+    joinDate: "2026-02-01",
+    messStartDate: "2026-05-01",
+    messDueDate: "2026-05-20", // Expired
+    paymentStatus: "Unpaid",
+    status: "Inactive",
+    attendanceRate: 85
+  },
+  {
+    rollNo: "104",
+    name: "Ananya Iyer",
+    email: "ananya.i@mitpune.edu.in",
+    hostelRoom: "A-112",
+    messId: "MESS-A",
+    joinDate: "2026-01-15",
+    messStartDate: "2026-05-01",
+    messDueDate: "2026-06-01",
+    paymentStatus: "Paid",
+    status: "Active",
+    attendanceRate: 95
+  }
+];
+
+const DEFAULT_HOSTELS = [
+  { id: "MIT-A", name: "MIT Pune — Hostel A", beds: 440, students: 187, plan: "Growth", status: "Active" },
+  { id: "COEP", name: "COEP Hostel", beds: 280, students: 142, plan: "Starter", status: "Active" },
+  { id: "VIT-B", name: "VIT Pune Hostel B", beds: 320, students: 98, plan: "Starter", status: "Trial" }
+];
+
+const DEFAULT_STAFF = [
+  { name: "Rajesh Kumar", role: "Head Cook", shift: "06:00 AM - 02:00 PM", status: "On Duty" },
+  { name: "Sunita Devi", role: "Kitchen Assistant", shift: "08:00 AM - 04:00 PM", status: "On Duty" },
+  { name: "Vikram Singh", role: "Cleaning Crew", shift: "11:00 AM - 07:00 PM", status: "On Duty" },
+  { name: "Ramesh Pathak", role: "Server Staff", shift: "12:00 PM - 09:00 PM", status: "Pending" }
+];
+
+function initDB() {
+  if (!localStorage.getItem('fb_students')) {
+    localStorage.setItem('fb_students', JSON.stringify(DEFAULT_STUDENTS));
+    localStorage.setItem('fb_menu', JSON.stringify(DEFAULT_MENU));
+    localStorage.setItem('fb_hostels', JSON.stringify(DEFAULT_HOSTELS));
+    localStorage.setItem('fb_staff', JSON.stringify(DEFAULT_STAFF));
+    localStorage.setItem('fb_attendance', JSON.stringify([]));
+    localStorage.setItem('fb_feedback', JSON.stringify([]));
+    localStorage.setItem('fb_waste', JSON.stringify([
+      { date: "2026-05-22", meal: "lunch", itemId: "salad", wasteKg: 6.3 },
+      { date: "2026-05-22", meal: "lunch", itemId: "dal_rice", wasteKg: 5.6 }
+    ]));
+    localStorage.setItem('fb_payments', JSON.stringify([]));
+    localStorage.setItem('fb_complaints', JSON.stringify([
+      { id: 1, rollNo: "102", type: "food", text: "Dal was too watery for today's lunch slot.", date: "2026-05-22", status: "Open" }
+    ]));
+  }
+  loadDB();
+}
+
+function loadDB() {
+  students = JSON.parse(localStorage.getItem('fb_students'));
+  menu = JSON.parse(localStorage.getItem('fb_menu'));
+  hostels = JSON.parse(localStorage.getItem('fb_hostels'));
+  staff = JSON.parse(localStorage.getItem('fb_staff'));
+  attendance = JSON.parse(localStorage.getItem('fb_attendance'));
+  feedback = JSON.parse(localStorage.getItem('fb_feedback'));
+  waste = JSON.parse(localStorage.getItem('fb_waste'));
+  payments = JSON.parse(localStorage.getItem('fb_payments'));
+  complaints = JSON.parse(localStorage.getItem('fb_complaints')) || [];
+}
+
+function saveDB() {
+  localStorage.setItem('fb_students', JSON.stringify(students));
+  localStorage.setItem('fb_menu', JSON.stringify(menu));
+  localStorage.setItem('fb_hostels', JSON.stringify(hostels));
+  localStorage.setItem('fb_staff', JSON.stringify(staff));
+  localStorage.setItem('fb_attendance', JSON.stringify(attendance));
+  localStorage.setItem('fb_feedback', JSON.stringify(feedback));
+  localStorage.setItem('fb_waste', JSON.stringify(waste));
+  localStorage.setItem('fb_payments', JSON.stringify(payments));
+  localStorage.setItem('fb_complaints', JSON.stringify(complaints));
+}
+
+function resetPrototypeDB() {
+  localStorage.removeItem('fb_students');
+  initDB();
+  showToast("Database reset to factory demo values successfully.");
+  location.reload();
+}
+
+// ==========================================
+// SIMULATED DATE/TIME SANDBOX CONTROLS
+// ==========================================
+let currentSimDate = "2026-05-22";
+let currentSimTime = "09:30";
+
+function initSandboxControls() {
+  document.getElementById('sim-date').value = currentSimDate;
+  document.getElementById('sim-time').value = currentSimTime;
+}
+
+function onSimDateChange() {
+  currentSimDate = document.getElementById('sim-date').value;
+  showToast(`Simulated system date set to ${currentSimDate}`);
+  if (currentActiveRole === 'student') {
+    document.getElementById('absence-date-picker').value = currentSimDate;
+    updateAbsenceCalendarUI();
+  } else if (currentActiveRole === 'manager') {
+    refreshManagerDashboard();
+  }
+}
+
+function onSimTimeChange() {
+  currentSimTime = document.getElementById('sim-time').value;
+  showToast(`Simulated system time set to ${currentSimTime}`);
+  if (currentActiveRole === 'student') {
+    updateAbsenceCalendarUI();
+  }
+}
+
+function advanceDateSim() {
+  const d = new Date(currentSimDate);
+  d.setDate(d.getDate() + 1);
+  currentSimDate = d.toISOString().split('T')[0];
+  document.getElementById('sim-date').value = currentSimDate;
+  showToast(`Date advanced to ${currentSimDate}`);
+  onSimDateChange();
+}
+
+// Helper to check what the current meal slot is based on simulated time
+function getCurrentMealSlotByTime() {
+  const hour = parseInt(currentSimTime.split(':')[0]);
+  if (hour < 10) return 'breakfast';
+  if (hour < 16) return 'lunch';
+  return 'dinner';
+}
+
+// ==========================================
+// SESSION STATE
+// ==========================================
+let currentActiveRole = 'login';
+let currentLoggedInStudent = null;
+let currentSelectedStudentForFeedback = '101';
+let currentFeedbackMealSlot = 'breakfast';
+let activeManagerTab = 'dashboard';
+
+// ==========================================
+// ROUTING & NAVIGATION
+// ==========================================
+function setLoginRole(role, btn) {
+  document.querySelectorAll('.role-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  
+  document.getElementById('login-form-student').style.display = 'none';
+  document.getElementById('login-form-manager').style.display = 'none';
+  document.getElementById('login-form-admin').style.display = 'none';
+  
+  if (role === 'student') {
+    document.getElementById('login-form-student').style.display = 'block';
+    document.getElementById('login-helper-text').innerHTML = "Logged in student status will load dynamically. Default pass is <strong>student123</strong>.";
+  } else if (role === 'manager') {
+    document.getElementById('login-form-manager').style.display = 'block';
+    document.getElementById('login-helper-text').innerHTML = "Select MGR-101 for Hostel A operations control. Default pass is <strong>manager123</strong>.";
+  } else if (role === 'admin') {
+    document.getElementById('login-form-admin').style.display = 'block';
+    document.getElementById('login-helper-text').innerHTML = "Platform financials and multi-hostel registration. Default pass is <strong>admin123</strong>.";
+  }
+}
+
+function executeLogin() {
+  const activeRoleBtn = document.querySelector('.role-tab.active');
+  const roleName = activeRoleBtn.textContent.toLowerCase();
+  
+  if (roleName === 'student') {
+    const roll = document.getElementById('student-select').value;
+    const student = students.find(s => s.rollNo === roll);
+    if (!student) {
+      showToast("Student not found.");
+      return;
+    }
+    currentLoggedInStudent = student;
+    currentActiveRole = 'student';
+    showToast(`Logged in successfully as Student: ${student.name}`);
+    initStudentDashboard();
+  } else if (roleName === 'manager') {
+    currentActiveRole = 'manager';
+    showToast("Logged in successfully as Mess Manager (Hostel A)");
+    initManagerDashboard();
+  } else if (roleName === 'admin') {
+    currentActiveRole = 'admin';
+    showToast("Logged in successfully as SuperAdmin");
+    initAdminDashboard();
+  }
+  
+  document.getElementById('page-login').style.display = 'none';
+  document.getElementById('authenticated-app').style.display = 'block';
+}
+
+function executeLogout() {
+  currentActiveRole = 'login';
+  currentLoggedInStudent = null;
+  document.getElementById('authenticated-app').style.display = 'none';
+  document.getElementById('page-login').style.display = 'flex';
+  showToast("You have been signed out securely.");
+}
+
+function renderNavbar() {
+  const navTabs = document.getElementById('navbar-tabs');
+  navTabs.innerHTML = '';
+  
+  if (currentActiveRole === 'student') {
+    navTabs.innerHTML = `
+      <button class="nav-tab active" onclick="showPage('student-dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        Student Dashboard
+      </button>
+    `;
+    
+    document.getElementById('user-display-name').textContent = currentLoggedInStudent.name;
+    document.getElementById('user-avatar-char').textContent = currentLoggedInStudent.name.charAt(0);
+  } else if (currentActiveRole === 'manager') {
+    navTabs.innerHTML = `
+      <button class="nav-tab active" onclick="showPage('manager-dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Manager Panel
+      </button>
+    `;
+    document.getElementById('user-display-name').textContent = "MGR-101 (Hostel A)";
+    document.getElementById('user-avatar-char').textContent = "M";
+  } else if (currentActiveRole === 'admin') {
+    navTabs.innerHTML = `
+      <button class="nav-tab active" onclick="showPage('admin-dashboard')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        SaaS Admin Panel
+      </button>
+    `;
+    document.getElementById('user-display-name').textContent = "Platform Admin";
+    document.getElementById('user-avatar-char').textContent = "A";
+  }
+}
+
+function showPage(pageId) {
+  document.querySelectorAll('.page').forEach(page => page.style.display = 'none');
+  const targetPage = document.getElementById(`view-${pageId}`);
+  if (targetPage) {
+    targetPage.style.display = 'block';
+  }
+}
+
+function goToHome() {
+  if (currentActiveRole === 'student') showPage('student-dashboard');
+  if (currentActiveRole === 'manager') showPage('manager-dashboard');
+  if (currentActiveRole === 'admin') showPage('admin-dashboard');
+}
+
+// ==========================================
+// STUDENT LOGIC
+// ==========================================
+function initStudentDashboard() {
+  renderNavbar();
+  showPage('student-dashboard');
+  
+  // Set date picker default to simulated date
+  document.getElementById('absence-date-picker').value = currentSimDate;
+  document.getElementById('multi-abs-start').value = currentSimDate;
+  document.getElementById('multi-abs-end').value = currentSimDate;
+  
+  updateStudentDuesWarning();
+  updateAbsenceCalendarUI();
+  updateStudentAttendanceHistory();
+  renderStudentQR();
+  changeStudentFeedbackMeal(currentFeedbackMealSlot, document.querySelector('.meal-tabs .meal-tab'));
+}
+
+function updateStudentDuesWarning() {
+  const alertContainer = document.getElementById('student-billing-alert');
+  alertContainer.innerHTML = '';
+  
+  const dueDate = new Date(currentLoggedInStudent.messDueDate);
+  const simDateObj = new Date(currentSimDate);
+  
+  // Calculate difference in days
+  const diffTime = dueDate - simDateObj;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  // Sync status
+  if (diffDays <= 0) {
+    currentLoggedInStudent.status = 'Inactive';
+    currentLoggedInStudent.paymentStatus = 'Unpaid';
+    saveDB();
+  }
+  
+  if (currentLoggedInStudent.paymentStatus === 'Unpaid') {
+    if (diffDays <= 0) {
+      alertContainer.innerHTML = `
+        <div class="alert-banner danger">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>
+            <strong>Mess subscription expired!</strong> Your account is inactive. Please renew your billing cycle to avoid entry denial.
+          </div>
+        </div>
+      `;
+      document.getElementById('student-mess-status-badge').className = "badge red";
+      document.getElementById('student-mess-status-badge').textContent = "Expired";
+    } else {
+      alertContainer.innerHTML = `
+        <div class="alert-banner">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          <div>
+            <strong>Your mess fee is due in ${diffDays} days!</strong> Pay the due amount of ₹2,999 to continue mess facilities without disruption.
+          </div>
+        </div>
+      `;
+      document.getElementById('student-mess-status-badge').className = "badge amber";
+      document.getElementById('student-mess-status-badge').textContent = "Due Soon";
+    }
+  } else {
+    document.getElementById('student-mess-status-badge').className = "badge green";
+    document.getElementById('student-mess-status-badge').textContent = "Active";
+  }
+  
+  // Render billing card fields
+  document.getElementById('student-welcome-title').textContent = `Welcome, ${currentLoggedInStudent.name}`;
+  document.getElementById('student-welcome-subtitle').textContent = `Hostel Room: ${currentLoggedInStudent.hostelRoom} · Roll No: ${currentLoggedInStudent.rollNo}`;
+  document.getElementById('sub-join-date').textContent = currentLoggedInStudent.joinDate;
+  document.getElementById('sub-due-date').textContent = currentLoggedInStudent.messDueDate;
+  document.getElementById('sub-status-text').textContent = currentLoggedInStudent.paymentStatus;
+}
+
+function updateAbsenceCalendarUI() {
+  const chosenDate = document.getElementById('absence-date-picker').value;
+  
+  // Search if an attendance record exists for this student on this date
+  const record = attendance.find(a => a.date === chosenDate && a.rollNo === currentLoggedInStudent.rollNo);
+  
+  // Breakfast lock check (7:00 AM)
+  const isBreakfastLocked = isMealTimeLocked(chosenDate, 7);
+  // Lunch lock check (10:00 AM)
+  const isLunchLocked = isMealTimeLocked(chosenDate, 10);
+  // Dinner lock check (4:00 PM)
+  const isDinnerLocked = isMealTimeLocked(chosenDate, 16);
+  
+  const bBox = document.getElementById('abs-box-breakfast');
+  const lBox = document.getElementById('abs-box-lunch');
+  const dBox = document.getElementById('abs-box-dinner');
+  
+  // Reset classes
+  bBox.className = "absence-meal-box";
+  lBox.className = "absence-meal-box";
+  dBox.className = "absence-meal-box";
+  
+  // Handle states
+  if (isBreakfastLocked) bBox.classList.add('locked');
+  if (record && record.breakfast) bBox.classList.add('selected');
+  
+  if (isLunchLocked) lBox.classList.add('locked');
+  if (record && record.lunch) lBox.classList.add('selected');
+  
+  if (isDinnerLocked) dBox.classList.add('locked');
+  if (record && record.dinner) dBox.classList.add('selected');
+  
+  // Update student QR if it's today's date
+  if (chosenDate === currentSimDate) {
+    renderStudentQR();
+  }
+}
+
+function isMealTimeLocked(dateString, cutoffHour) {
+  // If target date is strictly in the future, it is never locked
+  if (dateString > currentSimDate) return false;
+  // If target date is in the past, it is completely locked
+  if (dateString < currentSimDate) return true;
+  
+  // For today, compare times
+  const curHour = parseInt(currentSimTime.split(':')[0]);
+  const curMin = parseInt(currentSimTime.split(':')[1]);
+  
+  if (curHour > cutoffHour) return true;
+  if (curHour === cutoffHour && curMin > 0) return true;
+  
+  return false;
+}
+
+function toggleAbsenceSlot(mealSlot) {
+  const chosenDate = document.getElementById('absence-date-picker').value;
+  
+  // Check if locked
+  const cutoff = mealSlot === 'breakfast' ? 7 : (mealSlot === 'lunch' ? 10 : 16);
+  if (isMealTimeLocked(chosenDate, cutoff)) {
+    showToast(`Time-lock error: Cannot change attendance for ${mealSlot} after cutoff!`);
+    return;
+  }
+  
+  let record = attendance.find(a => a.date === chosenDate && a.rollNo === currentLoggedInStudent.rollNo);
+  if (!record) {
+    record = {
+      date: chosenDate,
+      rollNo: currentLoggedInStudent.rollNo,
+      breakfast: false,
+      lunch: false,
+      dinner: false,
+      scanned: { breakfast: false, lunch: false, dinner: false },
+      corrected: { breakfast: false, lunch: false, dinner: false }
+    };
+    attendance.push(record);
+  }
+  
+  // Toggle
+  record[mealSlot] = !record[mealSlot];
+  
+  // Reset scan and correction flags when toggling absence manually
+  record.scanned = record.scanned || { breakfast: false, lunch: false, dinner: false };
+  record.corrected = record.corrected || { breakfast: false, lunch: false, dinner: false };
+  record.scanned[mealSlot] = false;
+  record.corrected[mealSlot] = false;
+  
+  // If no absence marked at all, and not scanned/corrected, we can clear this record
+  if (!record.breakfast && !record.lunch && !record.dinner && 
+      !record.scanned.breakfast && !record.scanned.lunch && !record.scanned.dinner &&
+      !record.corrected.breakfast && !record.corrected.lunch && !record.corrected.dinner) {
+    attendance = attendance.filter(a => !(a.date === chosenDate && a.rollNo === currentLoggedInStudent.rollNo));
+  }
+  
+  saveDB();
+  updateAbsenceCalendarUI();
+  showToast(`Attendance slot updated for ${mealSlot}`);
+}
+
+function submitMultiDayLeave() {
+  const startStr = document.getElementById('multi-abs-start').value;
+  const endStr = document.getElementById('multi-abs-end').value;
+  
+  if (!startStr || !endStr) {
+    showToast("Please choose leave start and end dates.");
+    return;
+  }
+  if (startStr > endStr) {
+    showToast("Invalid date range.");
+    return;
+  }
+  
+  const start = new Date(startStr);
+  const end = new Date(endStr);
+  let current = new Date(start);
+  
+  let markedCount = 0;
+  
+  while (current <= end) {
+    const curStr = current.toISOString().split('T')[0];
+    
+    // Apply leave for breakfast, lunch, and dinner respecting the cutoffs
+    let record = attendance.find(a => a.date === curStr && a.rollNo === currentLoggedInStudent.rollNo);
+    if (!record) {
+      record = {
+        date: curStr,
+        rollNo: currentLoggedInStudent.rollNo,
+        breakfast: false,
+        lunch: false,
+        dinner: false,
+        scanned: { breakfast: false, lunch: false, dinner: false },
+        corrected: { breakfast: false, lunch: false, dinner: false }
+      };
+      attendance.push(record);
+    }
+    
+    // Ensure nested objects are initialized
+    record.scanned = record.scanned || { breakfast: false, lunch: false, dinner: false };
+    record.corrected = record.corrected || { breakfast: false, lunch: false, dinner: false };
+    
+    // Mark absent if not locked
+    if (!isMealTimeLocked(curStr, 7)) {
+      record.breakfast = true;
+      record.scanned.breakfast = false;
+      record.corrected.breakfast = false;
+    }
+    if (!isMealTimeLocked(curStr, 10)) {
+      record.lunch = true;
+      record.scanned.lunch = false;
+      record.corrected.lunch = false;
+    }
+    if (!isMealTimeLocked(curStr, 16)) {
+      record.dinner = true;
+      record.scanned.dinner = false;
+      record.corrected.dinner = false;
+    }
+    
+    markedCount++;
+    current.setDate(current.getDate() + 1);
+  }
+  
+  saveDB();
+  updateAbsenceCalendarUI();
+  updateStudentAttendanceHistory();
+  showToast(`Success: Logged full day absences for ${markedCount} days.`);
+}
+
+function updateStudentAttendanceHistory() {
+  const grid = document.getElementById('student-attendance-dots-grid');
+  grid.innerHTML = '';
+  
+  // Show 30 days grid of May 2026
+  let presentDays = 0;
+  let totalDays = 30;
+  
+  for (let d = 1; d <= 30; d++) {
+    const dayStr = `2026-05-${d < 10 ? '0' + d : d}`;
+    
+    // Look up if they marked absent for all meals or what
+    const record = attendance.find(a => a.date === dayStr && a.rollNo === currentLoggedInStudent.rollNo);
+    
+    let isAbsent = false;
+    if (record) {
+      // If they marked absent for all meals and did not scan
+      if (record.breakfast && record.lunch && record.dinner && 
+          !record.scanned.breakfast && !record.scanned.lunch && !record.scanned.dinner) {
+        isAbsent = true;
+      }
+    }
+    
+    // Dot display
+    const dot = document.createElement('div');
+    dot.className = `att-dot ${isAbsent ? 'absent' : 'present'}`;
+    dot.textContent = d;
+    dot.title = isAbsent ? `${dayStr}: Absent (Full Day)` : `${dayStr}: Present`;
+    
+    if (!isAbsent) presentDays++;
+    grid.appendChild(dot);
+  }
+  
+  const percentage = Math.round((presentDays / totalDays) * 100);
+  document.getElementById('student-att-percentage').textContent = `${percentage}%`;
+  currentLoggedInStudent.attendanceRate = percentage;
+  saveDB();
+}
+
+function renderStudentQR() {
+  const svg = document.getElementById('student-qr-svg');
+  svg.innerHTML = '';
+  
+  // Determine their current attendance status for the current meal slot
+  const currentMeal = getCurrentMealSlotByTime();
+  const record = attendance.find(a => a.date === currentSimDate && a.rollNo === currentLoggedInStudent.rollNo);
+  
+  let isAbsent = record ? record[currentMeal] : false;
+  
+  // QR metadata structure representation
+  const qrText = `FOODBACK-PASS|${currentLoggedInStudent.rollNo}|${currentSimDate}|${currentMeal}|${isAbsent ? 'ABSENT' : 'PRESENT'}`;
+  
+  // Render visual QR pattern
+  // SVG bars for mock qr representation
+  for (let i = 0; i < 9; i++) {
+    const rect1 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect1.setAttribute("x", i * 10 + 5);
+    rect1.setAttribute("y", "5");
+    rect1.setAttribute("width", "5");
+    rect1.setAttribute("height", "5");
+    rect1.setAttribute("fill", "#000");
+    svg.appendChild(rect1);
+    
+    const rect2 = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+    rect2.setAttribute("x", i * 10 + 5);
+    rect2.setAttribute("y", "85");
+    rect2.setAttribute("width", "5");
+    rect2.setAttribute("height", "5");
+    rect2.setAttribute("fill", "#000");
+    svg.appendChild(rect2);
+  }
+  
+  // Corner blocks representing QR markers
+  const marker = (x, y) => {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.innerHTML = `
+      <rect x="${x}" y="${y}" width="25" height="25" fill="none" stroke="#000" stroke-width="5"/>
+      <rect x="${x+8}" y="${y+8}" width="9" height="9" fill="#000"/>
+    `;
+    svg.appendChild(g);
+  };
+  marker(5, 5);
+  marker(70, 5);
+  marker(5, 70);
+  
+  // Random small dots in the center
+  for (let x = 30; x < 70; x += 8) {
+    for (let y = 30; y < 70; y += 8) {
+      if (Math.random() > 0.4) {
+        const dot = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        dot.setAttribute("x", x);
+        dot.setAttribute("y", y);
+        dot.setAttribute("width", "4");
+        dot.setAttribute("height", "4");
+        dot.setAttribute("fill", "#000");
+        svg.appendChild(dot);
+      }
+    }
+  }
+  
+  // Status label
+  const label = document.getElementById('student-qr-status-label');
+  document.getElementById('qr-student-name').textContent = currentLoggedInStudent.name;
+  document.getElementById('qr-student-roll').textContent = `Roll No: ${currentLoggedInStudent.rollNo} • Current Slot: ${currentMeal.toUpperCase()}`;
+  
+  if (currentLoggedInStudent.paymentStatus === 'Unpaid' && (new Date(currentLoggedInStudent.messDueDate) < new Date(currentSimDate))) {
+    label.className = "qr-status-indicator absent";
+    label.textContent = "Expired Subscription";
+  } else if (isAbsent) {
+    label.className = "qr-status-indicator absent";
+    label.textContent = "Marked Absent";
+  } else {
+    label.className = "qr-status-indicator";
+    label.textContent = "Marked Present";
+  }
+}
+
+function changeStudentFeedbackMeal(meal, btn) {
+  currentFeedbackMealSlot = meal;
+  document.querySelectorAll('.meal-tab').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  
+  const menuItems = menu[meal] || [];
+  const list = document.getElementById('student-feedback-menu-list');
+  list.innerHTML = '';
+  
+  if (menuItems.length === 0) {
+    list.innerHTML = `<div class="empty">No items listed for ${meal} yet.</div>`;
+    return;
+  }
+  
+  menuItems.forEach(item => {
+    // Check if feedback exists
+    const prevFb = feedback.find(f => f.date === currentSimDate && f.rollNo === currentLoggedInStudent.rollNo && f.itemId === item.id);
+    const ratingVal = prevFb ? prevFb.rating : 0;
+    const commentVal = prevFb ? prevFb.comment : '';
+    
+    const div = document.createElement('div');
+    div.className = 'meal-slot';
+    div.innerHTML = `
+      <div class="meal-slot-header">
+        <div class="meal-slot-name">${item.name}</div>
+        <div class="meal-slot-type">${item.type}</div>
+      </div>
+      <div class="stars" id="stars-container-${item.id}">
+        ${[1, 2, 3, 4, 5].map(starIdx => `
+          <span class="star ${starIdx <= ratingVal ? 'lit' : ''}" 
+                onclick="rateItem('${item.id}', ${starIdx})">★</span>
+        `).join('')}
+      </div>
+      <textarea id="comment-${item.id}" class="comment" rows="2" placeholder="Tell the kitchen how it tasted...">${commentVal}</textarea>
+      <button class="btn-primary" style="margin-top: 10px; padding: 6px 12px; font-size: 0.82rem; background: var(--text);" onclick="submitSingleItemFeedback('${item.id}')">✓ Save Rating</button>
+    `;
+    list.appendChild(div);
+  });
+}
+
+function rateItem(itemId, value) {
+  const container = document.getElementById(`stars-container-${itemId}`);
+  const stars = container.querySelectorAll('.star');
+  stars.forEach((star, idx) => {
+    star.classList.toggle('lit', idx < value);
+  });
+  // Temporarily store rating
+  container.dataset.rating = value;
+}
+
+function submitSingleItemFeedback(itemId) {
+  const container = document.getElementById(`stars-container-${itemId}`);
+  const rating = parseInt(container.dataset.rating || container.querySelectorAll('.star.lit').length);
+  const comment = document.getElementById(`comment-${itemId}`).value;
+  
+  if (rating === 0) {
+    showToast("Please select a star rating first.");
+    return;
+  }
+  
+  // Remove duplicate feedback
+  feedback = feedback.filter(f => !(f.date === currentSimDate && f.rollNo === currentLoggedInStudent.rollNo && f.itemId === itemId));
+  
+  feedback.push({
+    date: currentSimDate,
+    rollNo: currentLoggedInStudent.rollNo,
+    meal: currentFeedbackMealSlot,
+    itemId: itemId,
+    rating: rating,
+    comment: comment
+  });
+  
+  saveDB();
+  
+  // Show notification alert
+  const banner = document.getElementById('feedback-success-banner');
+  banner.style.display = 'block';
+  setTimeout(() => {
+    banner.style.display = 'none';
+  }, 3000);
+}
+
+// Payment Modal Handling
+function openPaymentModal() {
+  document.getElementById('checkout-roll').textContent = currentLoggedInStudent.rollNo;
+  document.getElementById('pay-modal').style.display = 'flex';
+}
+
+function closePaymentModal() {
+  document.getElementById('pay-modal').style.display = 'none';
+}
+
+function processMockPayment() {
+  const btn = document.getElementById('pay-btn-submit');
+  btn.disabled = true;
+  btn.textContent = "Processing Secure Payment...";
+  
+  setTimeout(() => {
+    // Success Renewal Logic
+    currentLoggedInStudent.paymentStatus = 'Paid';
+    currentLoggedInStudent.status = 'Active';
+    
+    // Set due date to 1 month from current simulated date
+    const d = new Date(currentSimDate);
+    d.setMonth(d.getMonth() + 1);
+    currentLoggedInStudent.messDueDate = d.toISOString().split('T')[0];
+    
+    payments.push({
+      date: currentSimDate,
+      rollNo: currentLoggedInStudent.rollNo,
+      amount: 2999,
+      plan: "Starter",
+      status: "Success"
+    });
+    
+    saveDB();
+    updateStudentDuesWarning();
+    renderStudentQR();
+    closePaymentModal();
+    
+    btn.disabled = false;
+    btn.textContent = "Process Renewal Dues";
+    showToast("Mess subscription successfully renewed! Dues updated.");
+  }, 1500);
+}
+
+function submitComplaint() {
+  const type = document.getElementById('complaint-type').value;
+  const text = document.getElementById('complaint-text').value;
+  
+  if (!text) {
+    showToast("Complaint text cannot be empty.");
+    return;
+  }
+  
+  complaints.push({
+    id: Date.now(),
+    rollNo: currentLoggedInStudent.rollNo,
+    type: type,
+    text: text,
+    date: currentSimDate,
+    status: "Open"
+  });
+  
+  saveDB();
+  document.getElementById('complaint-text').value = '';
+  showToast("Support ticket registered successfully. Mess staff will review.");
+}
+
+
+// ==========================================
+// MANAGER LOGIC
+// ==========================================
+function initManagerDashboard() {
+  renderNavbar();
+  showPage('manager-dashboard');
+  
+  // Fill students dropdown for entrance scanner
+  const select = document.getElementById('scanner-simulate-student-select');
+  select.innerHTML = '';
+  students.forEach(s => {
+    const option = document.createElement('option');
+    option.value = s.rollNo;
+    option.textContent = `${s.name} (${s.rollNo})`;
+    select.appendChild(option);
+  });
+  
+  refreshManagerDashboard();
+}
+
+function switchManagerTab(tabId, btn) {
+  activeManagerTab = tabId;
+  document.querySelectorAll('.m-tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  
+  document.querySelectorAll('.m-tab-content').forEach(c => c.style.display = 'none');
+  document.getElementById(`m-tab-${tabId}`).style.display = 'block';
+  
+  if (tabId === 'dashboard') {
+    refreshManagerDashboard();
+  } else if (tabId === 'scanner') {
+    refreshScannerLogs();
+  } else if (tabId === 'feedback') {
+    refreshFeedbackReports();
+  } else if (tabId === 'waste-tab') {
+    refreshWasteTab();
+  } else if (tabId === 'menu') {
+    loadMenuEditorSlot();
+  } else if (tabId === 'staff') {
+    refreshStaffTable();
+  }
+}
+
+function refreshManagerDashboard() {
+  const currentMeal = getCurrentMealSlotByTime();
+  document.getElementById('manager-current-meal-badge').textContent = `Current Slot: ${currentMeal.toUpperCase()}`;
+  
+  // Calculations
+  const totalSt = students.length;
+  document.getElementById('stat-total-students').textContent = totalSt;
+  
+  // Count absences marked for current meal today
+  const absToday = attendance.filter(a => a.date === currentSimDate && a.rollNo && a[currentMeal]);
+  const absentCount = absToday.length;
+  document.getElementById('stat-absent-count').textContent = absentCount;
+  
+  // Prediction: Base (assume 100% of non-absent students eat)
+  // AI forecasting factors: exam week adds 12%, sunday removes 30%
+  let factor = 1.0;
+  const dayName = new Date(currentSimDate).toLocaleDateString('en-US', { weekday: 'long' });
+  document.getElementById('forecast-factor-day').textContent = dayName;
+  document.getElementById('forecast-factor-absences').textContent = `${absentCount} marked`;
+  
+  if (dayName === 'Sunday') factor -= 0.3;
+  // Assumed exam week active
+  factor += 0.12;
+  
+  const predTurnout = Math.max(0, Math.round((totalSt - absentCount) * factor));
+  document.getElementById('stat-pred-count').textContent = predTurnout;
+  
+  // Actual Scanned count (from attendance.scanned)
+  const scannedToday = attendance.filter(a => a.date === currentSimDate && a.scanned && a.scanned[currentMeal]);
+  document.getElementById('stat-scanned-count').textContent = scannedToday.length;
+  
+  // How many scans corrected from ABSENT -> PRESENT
+  const correctedCount = attendance.filter(a => a.date === currentSimDate && a.corrected && a.corrected[currentMeal]).length;
+  document.getElementById('stat-scanned-subtext').textContent = `${correctedCount} absence(s) corrected to present`;
+  
+  // Portions Suggestions
+  const portionsList = document.getElementById('manager-portion-recommendations-list');
+  portionsList.innerHTML = '';
+  
+  const currentMenuItems = menu[currentMeal] || [];
+  currentMenuItems.forEach(item => {
+    // Dynamic calculation formula based on prediction
+    let baseQty = 0.2; // 200g base per student
+    let unit = 'kg';
+    if (item.id === 'roti' || item.id === 'chapati') {
+      baseQty = 2.2; // 2.2 pieces per student
+      unit = 'pcs';
+    } else if (item.id === 'sweet') {
+      baseQty = 1.1;
+      unit = 'pcs';
+    } else if (item.id === 'chai') {
+      baseQty = 0.15;
+      unit = 'L';
+    }
+    
+    const calculatedQty = Math.round(predTurnout * baseQty);
+    
+    const row = document.createElement('div');
+    row.className = 'prog-row';
+    row.innerHTML = `
+      <div style="display:flex; justify-content:space-between; margin-bottom: 4px; font-size: 0.85rem;">
+        <strong>${item.name}</strong>
+        <span style="color:var(--green-dark); font-weight:600;">${calculatedQty} ${unit} recommended</span>
+      </div>
+      <div class="forecast-progress-bar">
+        <div class="forecast-progress-fill" style="width: ${Math.min(100, Math.round((calculatedQty / (totalSt * baseQty)) * 100))}%"></div>
+      </div>
+    `;
+    portionsList.appendChild(row);
+  });
+  
+  // Populate Fee cycles & Pending Dues table
+  const duesTableBody = document.querySelector('#manager-dues-table tbody');
+  if (duesTableBody) {
+    duesTableBody.innerHTML = '';
+    students.forEach(s => {
+      const isUnpaid = s.paymentStatus === 'Unpaid';
+      const balanceText = isUnpaid ? '₹2,999' : '₹0';
+      
+      const dueDate = new Date(s.messDueDate);
+      const simDateObj = new Date(currentSimDate);
+      const diffTime = dueDate - simDateObj;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      let badgeClass = 'badge green';
+      let statusText = 'Paid';
+      let actionBtn = `<button class="sim-btn" style="padding: 4px 8px; font-size: 0.75rem; background: var(--muted); cursor: not-allowed;" disabled>Up to date</button>`;
+      
+      if (isUnpaid) {
+        if (diffDays <= 0) {
+          badgeClass = 'badge red';
+          statusText = 'Expired';
+          actionBtn = `<button class="sim-btn danger" style="padding: 4px 8px; font-size: 0.75rem;" onclick="sendDuesReminder('${s.rollNo}')">Send Alert</button>`;
+        } else {
+          badgeClass = 'badge amber';
+          statusText = 'Due Soon';
+          actionBtn = `<button class="sim-btn" style="padding: 4px 8px; font-size: 0.75rem; background: var(--amber-dark);" onclick="sendDuesReminder('${s.rollNo}')">Remind</button>`;
+        }
+      }
+      
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td><strong>${s.name}</strong><br><span style="font-size:0.75rem; color:var(--muted)">Roll: ${s.rollNo}</span></td>
+        <td>${s.messDueDate} <span class="${badgeClass}" style="margin-left: 5px; font-size: 0.65rem;">${statusText}</span></td>
+        <td><strong ${isUnpaid ? 'style="color:var(--red-dark);"' : ''}>${balanceText}</strong></td>
+        <td>${actionBtn}</td>
+      `;
+      duesTableBody.appendChild(row);
+    });
+  }
+  
+  // Draw forecasts graphs
+  renderManagerForecastChart();
+  
+  // Render manager notifications/alerts
+  updateManagerAlerts();
+}
+
+function refreshScannerLogs() {
+  const body = document.getElementById('scanner-logs-body');
+  body.innerHTML = '';
+  
+  // Read qr logs
+  const logs = JSON.parse(localStorage.getItem('fb_qr_logs')) || [];
+  
+  if (logs.length === 0) {
+    body.innerHTML = `<tr><td colspan="4" class="empty">No entries logged today.</td></tr>`;
+    return;
+  }
+  
+  // Render last 10 logs reversed
+  logs.slice(-10).reverse().forEach(log => {
+    let pillClass = 'badge';
+    if (log.status.includes('Allowed')) pillClass += ' green';
+    if (log.status.includes('Corrected')) pillClass += ' amber';
+    if (log.status.includes('Denied')) pillClass += ' red';
+    
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><strong>${log.time}</strong></td>
+      <td>${log.name} (${log.rollNo})</td>
+      <td>${log.meal.toUpperCase()}</td>
+      <td><span class="${pillClass}">${log.status}</span></td>
+    `;
+    body.appendChild(row);
+  });
+}
+
+function simulateQRScan() {
+  const rollNo = document.getElementById('scanner-simulate-student-select').value;
+  const student = students.find(s => s.rollNo === rollNo);
+  
+  if (!student) {
+    showToast("Invalid student selected.");
+    return;
+  }
+  
+  const currentMeal = getCurrentMealSlotByTime();
+  const timeStr = currentSimTime;
+  const feedbackBox = document.getElementById('scan-feedback-box');
+  
+  // Verification rules
+  // 1. Expired Check
+  const expired = student.paymentStatus === 'Unpaid' && (new Date(student.messDueDate) < new Date(currentSimDate));
+  if (expired) {
+    feedbackBox.className = "scanner-result error";
+    feedbackBox.style.display = "block";
+    feedbackBox.innerHTML = `
+      <strong>🚨 ACCESS DENIED: SUBSCRIPTION EXPIRED</strong><br>
+      Student: ${student.name} (${student.rollNo})<br>
+      Due Date was: ${student.messDueDate}<br>
+      Action required: Clear unpaid mess dues.
+    `;
+    logQRScan(rollNo, student.name, currentMeal, "Access Denied: Expired Subscription");
+    refreshScannerLogs();
+    playBeep(150, 1.5); // high error beep
+    return;
+  }
+  
+  // Search attendance record
+  let record = attendance.find(a => a.date === currentSimDate && a.rollNo === rollNo);
+  
+  if (record && record[currentMeal]) {
+    // Was ABSENT -> Automatically change to PRESENT
+    record[currentMeal] = false; // absent = false means present
+    record.scanned = record.scanned || { breakfast: false, lunch: false, dinner: false };
+    record.scanned[currentMeal] = true;
+    record.corrected = record.corrected || { breakfast: false, lunch: false, dinner: false };
+    record.corrected[currentMeal] = true;
+    saveDB();
+    
+    feedbackBox.className = "scanner-result warning";
+    feedbackBox.style.display = "block";
+    feedbackBox.innerHTML = `
+      <strong>⚠️ ABSENT CORRECTION ACTIVE</strong><br>
+      Student: ${student.name} (${student.rollNo})<br>
+      Previous Status: Marked Absent for ${currentMeal.toUpperCase()}<br>
+      Correction: System corrected status to <strong>Present</strong>. Entry Allowed.
+    `;
+    logQRScan(rollNo, student.name, currentMeal, "Allowed: Corrected Absent->Present");
+    playBeep(400, 0.2); // positive high tone
+  } else {
+    // Default Present scan
+    if (!record) {
+      record = {
+        date: currentSimDate,
+        rollNo: rollNo,
+        breakfast: false,
+        lunch: false,
+        dinner: false,
+        scanned: { breakfast: false, lunch: false, dinner: false },
+        corrected: { breakfast: false, lunch: false, dinner: false }
+      };
+      attendance.push(record);
+    }
+    record.scanned = record.scanned || { breakfast: false, lunch: false, dinner: false };
+    record.corrected = record.corrected || { breakfast: false, lunch: false, dinner: false };
+    record.scanned[currentMeal] = true;
+    saveDB();
+    
+    feedbackBox.className = "scanner-result success";
+    feedbackBox.style.display = "block";
+    feedbackBox.innerHTML = `
+      <strong>✅ VERIFIED: ENTRY ALLOWED</strong><br>
+      Student: ${student.name} (${student.rollNo})<br>
+      Status: Present (Scanned entry confirmed)
+    `;
+    logQRScan(rollNo, student.name, currentMeal, "Allowed: Verified Present");
+    playBeep(600, 0.1); // quick success tone
+  }
+  
+  refreshScannerLogs();
+}
+
+function logQRScan(rollNo, name, meal, status) {
+  const logs = JSON.parse(localStorage.getItem('fb_qr_logs')) || [];
+  logs.push({
+    time: currentSimTime,
+    rollNo: rollNo,
+    name: name,
+    meal: meal,
+    status: status
+  });
+  localStorage.setItem('fb_qr_logs', JSON.stringify(logs));
+}
+
+// Simple synthesizer sound generator using Web Audio API
+function playBeep(freq, duration) {
+  try {
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    
+    oscillator.frequency.value = freq;
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+    
+    oscillator.start(audioCtx.currentTime);
+    oscillator.stop(audioCtx.currentTime + duration);
+  } catch (e) {
+    // Browser might block audio context without interaction
+  }
+}
+
+function refreshFeedbackReports() {
+  const tableBody = document.querySelector('#manager-ratings-table tbody');
+  tableBody.innerHTML = '';
+  
+  // Calculate average ratings for each item
+  const allMeals = [...DEFAULT_MENU.breakfast, ...DEFAULT_MENU.lunch, ...DEFAULT_MENU.dinner];
+  const itemsScores = {};
+  
+  feedback.forEach(fb => {
+    if (!itemsScores[fb.itemId]) {
+      itemsScores[fb.itemId] = { total: 0, count: 0 };
+    }
+    itemsScores[fb.itemId].total += fb.rating;
+    itemsScores[fb.itemId].count++;
+  });
+  
+  allMeals.forEach(meal => {
+    const stats = itemsScores[meal.id];
+    const avg = stats ? (stats.total / stats.count).toFixed(1) : "—";
+    const counts = stats ? stats.count : 0;
+    
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><strong>${meal.name}</strong></td>
+      <td><span class="badge ${avg < 3 && avg !== '—' ? 'red' : 'green'}">★ ${avg}</span></td>
+      <td>${counts} feedbacks</td>
+    `;
+    tableBody.appendChild(row);
+  });
+  
+  // Render Complaints list
+  const complaintsList = document.getElementById('manager-complaints-list');
+  complaintsList.innerHTML = '';
+  
+  if (complaints.length === 0) {
+    complaintsList.innerHTML = `<div class="empty">No tickets opened.</div>`;
+  } else {
+    complaints.forEach(ticket => {
+      const card = document.createElement('div');
+      card.className = `alert-card ${ticket.status === 'Open' ? 'critical' : 'success'}`;
+      card.innerHTML = `
+        <div class="alert-body">
+          <div class="alert-title-text" style="display:flex; justify-content:space-between;">
+            <span>Student Roll ${ticket.rollNo} — [${ticket.type.toUpperCase()}]</span>
+            <button class="sim-btn" style="padding: 2px 6px; font-size: 0.72rem;" onclick="closeComplaintTicket(${ticket.id})">Close Ticket</button>
+          </div>
+          <p style="font-size:0.85rem; margin-bottom:6px;">"${ticket.text}"</p>
+          <span class="alert-time">Date Filed: ${ticket.date} • Status: ${ticket.status}</span>
+        </div>
+      `;
+      complaintsList.appendChild(card);
+    });
+  }
+
+  // Populate feedback comments table
+  const commentsTableBody = document.querySelector('#manager-feedback-comments-table tbody');
+  if (commentsTableBody) {
+    commentsTableBody.innerHTML = '';
+    const filteredFeedback = feedback.filter(fb => fb.comment && fb.comment.trim() !== '');
+    if (filteredFeedback.length === 0) {
+      commentsTableBody.innerHTML = `<tr><td colspan="5" class="empty">No text reviews submitted yet.</td></tr>`;
+    } else {
+      filteredFeedback.slice(-10).reverse().forEach(fb => {
+        const student = students.find(s => s.rollNo === fb.rollNo);
+        const studentName = student ? student.name : `Roll ${fb.rollNo}`;
+        const item = allMeals.find(m => m.id === fb.itemId);
+        const itemName = item ? item.name : fb.itemId;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${fb.date}</td>
+          <td><strong>${studentName}</strong></td>
+          <td>${itemName}</td>
+          <td><span class="badge ${fb.rating >= 4 ? 'green' : (fb.rating <= 2 ? 'red' : 'amber')}">★ ${fb.rating}</span></td>
+          <td><em>"${fb.comment}"</em></td>
+        `;
+        commentsTableBody.appendChild(row);
+      });
+    }
+  }
+}
+
+function closeComplaintTicket(id) {
+  const ticket = complaints.find(c => c.id === id);
+  if (ticket) {
+    ticket.status = "Closed";
+    saveDB();
+    refreshFeedbackReports();
+    showToast("Complaint ticket closed successfully.");
+  }
+}
+
+function refreshWasteTab() {
+  // Update waste today sum
+  const todayWaste = waste.filter(w => w.date === currentSimDate);
+  const totalKg = todayWaste.reduce((sum, item) => sum + parseFloat(item.wasteKg), 0);
+  document.getElementById('waste-total-today-val').textContent = `${totalKg.toFixed(1)} kg`;
+  document.getElementById('waste-cost-today-val').textContent = `₹${(totalKg * 50).toFixed(0)}`;
+  
+  // Populate Today's Waste Log Table
+  const wasteTableBody = document.querySelector('#manager-waste-today-table tbody');
+  if (wasteTableBody) {
+    wasteTableBody.innerHTML = '';
+    if (todayWaste.length === 0) {
+      wasteTableBody.innerHTML = `<tr><td colspan="4" class="empty">No waste logs recorded today.</td></tr>`;
+    } else {
+      const allMeals = [...DEFAULT_MENU.breakfast, ...DEFAULT_MENU.lunch, ...DEFAULT_MENU.dinner];
+      todayWaste.forEach(w => {
+        const item = allMeals.find(m => m.id === w.itemId);
+        const itemName = item ? item.name : w.itemId;
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td><span class="badge blue">${w.meal.toUpperCase()}</span></td>
+          <td><strong>${itemName}</strong></td>
+          <td><strong style="color:var(--red-dark);">${w.wasteKg} kg</strong></td>
+          <td>₹${(w.wasteKg * 50).toFixed(0)}</td>
+        `;
+        wasteTableBody.appendChild(row);
+      });
+    }
+  }
+  
+  renderManagerWasteChart();
+}
+
+function submitWasteLog() {
+  const meal = document.getElementById('waste-log-meal').value;
+  const itemId = document.getElementById('waste-log-item').value;
+  const amount = parseFloat(document.getElementById('waste-log-amount').value);
+  
+  if (isNaN(amount) || amount <= 0) {
+    showToast("Please enter a valid waste quantity.");
+    return;
+  }
+  
+  waste.push({
+    date: currentSimDate,
+    meal: meal,
+    itemId: itemId,
+    wasteKg: amount
+  });
+  
+  saveDB();
+  document.getElementById('waste-log-amount').value = '';
+  refreshWasteTab();
+  showToast("Waste log stored successfully.");
+}
+
+function loadMenuEditorSlot() {
+  const slot = document.getElementById('menu-editor-slot').value;
+  const container = document.getElementById('menu-editor-items-container');
+  container.innerHTML = '';
+  
+  const slotItems = menu[slot] || [];
+  slotItems.forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'form-group';
+    row.style.display = 'flex';
+    row.style.gap = '10px';
+    row.style.alignItems = 'center';
+    row.innerHTML = `
+      <input type="text" class="form-input" style="flex:2;" value="${item.name}" id="menu-edit-name-${slot}-${idx}">
+      <input type="text" class="form-input" style="flex:1;" value="${item.type}" id="menu-edit-type-${slot}-${idx}">
+      <button class="sim-btn danger" style="padding:10px;" onclick="deleteMenuItem('${slot}', ${idx})">Remove</button>
+    `;
+    container.appendChild(row);
+  });
+  
+  // Add new item fields
+  const addRow = document.createElement('div');
+  addRow.style.marginTop = '15px';
+  addRow.innerHTML = `
+    <span class="form-label">Add New Item to Slot</span>
+    <div style="display:flex; gap:10px;">
+      <input type="text" class="form-input" id="menu-add-name" placeholder="Item Name (e.g. Samosa)">
+      <input type="text" class="form-input" id="menu-add-type" placeholder="Type (e.g. Main)">
+      <button class="sim-btn" onclick="addNewMenuItem('${slot}')">Add Item</button>
+    </div>
+  `;
+  container.appendChild(addRow);
+}
+
+function addNewMenuItem(slot) {
+  const name = document.getElementById('menu-add-name').value;
+  const type = document.getElementById('menu-add-type').value;
+  
+  if (!name || !type) {
+    showToast("Name and Type are required.");
+    return;
+  }
+  
+  menu[slot].push({
+    id: name.toLowerCase().replace(/ /g, '_'),
+    name: name,
+    type: type
+  });
+  
+  saveDB();
+  loadMenuEditorSlot();
+  showToast(`${name} added to ${slot} list.`);
+}
+
+function deleteMenuItem(slot, idx) {
+  menu[slot].splice(idx, 1);
+  saveDB();
+  loadMenuEditorSlot();
+  showToast("Item removed.");
+}
+
+function saveMenuEdits() {
+  const slot = document.getElementById('menu-editor-slot').value;
+  const slotItems = menu[slot] || [];
+  
+  slotItems.forEach((item, idx) => {
+    const nameVal = document.getElementById(`menu-edit-name-${slot}-${idx}`).value;
+    const typeVal = document.getElementById(`menu-edit-type-${slot}-${idx}`).value;
+    if (nameVal && typeVal) {
+      item.name = nameVal;
+      item.type = typeVal;
+    }
+  });
+  
+  saveDB();
+  showToast("Menu configuration saved and live.");
+}
+
+function refreshStaffTable() {
+  const body = document.getElementById('manager-staff-table-body');
+  body.innerHTML = '';
+  
+  staff.forEach((s, idx) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><strong>${s.name}</strong></td>
+      <td>${s.role}</td>
+      <td>${s.shift}</td>
+      <td><span class="badge ${s.status === 'On Duty' ? 'green' : 'amber'}">${s.status}</span></td>
+      <td>
+        <button class="sim-btn" style="padding: 4px 8px; font-size:0.75rem;" onclick="toggleStaffDuty(${idx})">Toggle Duty</button>
+      </td>
+    `;
+    body.appendChild(row);
+  });
+}
+
+function toggleStaffDuty(idx) {
+  staff[idx].status = staff[idx].status === 'On Duty' ? 'Pending' : 'On Duty';
+  saveDB();
+  refreshStaffTable();
+  showToast(`Staff shift updated for ${staff[idx].name}`);
+}
+
+// Operational Report Exports
+function exportReport(type) {
+  if (type === 'csv') {
+    // Generate CSV contents representing attendance lists
+    let csvContent = "data:text/csv;charset=utf-8,";
+    csvContent += "Date,Roll Number,Breakfast Absent,Lunch Absent,Dinner Absent,Scanned Breakfast,Scanned Lunch,Scanned Dinner\n";
+    
+    attendance.forEach(att => {
+      csvContent += `${att.date},${att.rollNo},${att.breakfast},${att.lunch},${att.dinner},${att.scanned?.breakfast || false},${att.scanned?.lunch || false},${att.scanned?.dinner || false}\n`;
+    });
+    
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `foodback_attendance_report_${currentSimDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSV Attendance report download triggered successfully.");
+  } else if (type === 'print') {
+    window.print();
+  }
+}
+
+// ==========================================
+// SUPERADMIN LOGIC
+// ==========================================
+function initAdminDashboard() {
+  renderNavbar();
+  showPage('admin-dashboard');
+  refreshAdminView();
+}
+
+function refreshAdminView() {
+  // Update numbers
+  document.getElementById('admin-hostels-count').textContent = hostels.length;
+  
+  // Calculate SaaS MRR
+  let totalMRR = 0;
+  hostels.forEach(h => {
+    if (h.status === 'Active') {
+      if (h.plan === 'Starter') totalMRR += 2999;
+      else if (h.plan === 'Growth') totalMRR += 4999;
+      else if (h.plan === 'Enterprise') totalMRR += 9999;
+    }
+  });
+  document.getElementById('admin-mrr-val').textContent = `₹${totalMRR.toLocaleString('en-IN')}`;
+  
+  // Draw hostels list
+  const body = document.querySelector('#admin-hostels-table tbody');
+  body.innerHTML = '';
+  
+  hostels.forEach((h, idx) => {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+      <td><strong>${h.name}</strong></td>
+      <td>${h.beds}</td>
+      <td><span class="badge blue">${h.plan}</span></td>
+      <td>₹${h.plan === 'Starter' ? '2,999' : (h.plan === 'Growth' ? '4,999' : '9,999')}</td>
+      <td><span class="badge ${h.status === 'Active' ? 'green' : 'amber'}">${h.status}</span></td>
+      <td>
+        <button class="sim-btn danger" style="padding: 4px 8px; font-size:0.75rem;" onclick="removeHostel(${idx})">Unregister</button>
+      </td>
+    `;
+    body.appendChild(row);
+  });
+  
+  renderAdminCharts();
+}
+
+function openNewHostelModal() {
+  document.getElementById('new-hostel-modal').style.display = 'flex';
+}
+
+function closeNewHostelModal() {
+  document.getElementById('new-hostel-modal').style.display = 'none';
+}
+
+function saveNewHostel() {
+  const name = document.getElementById('h-name').value;
+  const beds = parseInt(document.getElementById('h-beds').value);
+  const plan = document.getElementById('h-plan').value;
+  
+  if (!name || isNaN(beds) || beds <= 0) {
+    showToast("Please fill all fields.");
+    return;
+  }
+  
+  hostels.push({
+    id: name.toLowerCase().replace(/ /g, '-'),
+    name: name,
+    beds: beds,
+    students: 0,
+    plan: plan,
+    status: 'Active'
+  });
+  
+  saveDB();
+  refreshAdminView();
+  closeNewHostelModal();
+  showToast(`${name} registered in the platform.`);
+}
+
+function removeHostel(idx) {
+  const name = hostels[idx].name;
+  hostels.splice(idx, 1);
+  saveDB();
+  refreshAdminView();
+  showToast(`Hostel ${name} removed.`);
+}
+
+// ==========================================
+// UTILITY TOAST
+// ==========================================
+function showToast(msg) {
+  const t = document.getElementById('toast-notif');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(() => {
+    t.style.display = 'none';
+  }, 3500);
+}
+
+function sendDuesReminder(rollNo) {
+  const student = students.find(s => s.rollNo === rollNo);
+  if (student) {
+    showToast(`🔔 Dues reminder notification sent to ${student.name} (${student.email})`);
+  }
+}
+
+function updateManagerAlerts() {
+  const container = document.getElementById('manager-alerts-container');
+  if (!container) return;
+  container.innerHTML = '';
+  
+  const alerts = [];
+  
+  // 1. Time-Lock warnings
+  const curHour = parseInt(currentSimTime.split(':')[0]);
+  const curMin = parseInt(currentSimTime.split(':')[1]);
+  if (curHour === 9) {
+    const minsLeft = 60 - curMin;
+    alerts.push({
+      type: 'warning',
+      text: `⏰ <strong>Absence Cutoff:</strong> Lunch absence lock closes in ${minsLeft} minutes (at 10:00 AM).`
+    });
+  } else if (curHour === 15) {
+    const minsLeft = 60 - curMin;
+    alerts.push({
+      type: 'warning',
+      text: `⏰ <strong>Absence Cutoff:</strong> Dinner absence lock closes in ${minsLeft} minutes (at 04:00 PM).`
+    });
+  }
+  
+  // 2. High Waste alerts
+  const todayWaste = waste.filter(w => w.date === currentSimDate);
+  todayWaste.forEach(w => {
+    if (w.wasteKg >= 10.0) {
+      const allMeals = [...DEFAULT_MENU.breakfast, ...DEFAULT_MENU.lunch, ...DEFAULT_MENU.dinner];
+      const item = allMeals.find(m => m.id === w.itemId);
+      const itemName = item ? item.name : w.itemId;
+      alerts.push({
+        type: 'critical',
+        text: `🗑️ <strong>High Waste Alert:</strong> ${itemName} waste reached <strong style="color:var(--red-dark);">${w.wasteKg} kg</strong> for ${w.meal.toUpperCase()} today. Excess prepared.`
+      });
+    }
+  });
+  
+  // 3. Subscription Expired alerts
+  const unpaidStudents = students.filter(s => s.paymentStatus === 'Unpaid');
+  unpaidStudents.forEach(s => {
+    const dueDate = new Date(s.messDueDate);
+    const simDateObj = new Date(currentSimDate);
+    const diffDays = Math.ceil((dueDate - simDateObj) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) {
+      alerts.push({
+        type: 'critical',
+        text: `💳 <strong>Subscription Expired:</strong> Student <strong>${s.name}</strong> (${s.rollNo}) has active unpaid dues. Entry will be denied.`
+      });
+    } else if (diffDays <= 3) {
+      alerts.push({
+        type: 'info',
+        text: `💳 <strong>Dues Warning:</strong> Student <strong>${s.name}</strong> (${s.rollNo}) billing cycle expires in ${diffDays} days.`
+      });
+    }
+  });
+
+  // 4. Low ratings alerts
+  const allMeals = [...DEFAULT_MENU.breakfast, ...DEFAULT_MENU.lunch, ...DEFAULT_MENU.dinner];
+  const itemsScores = {};
+  feedback.forEach(fb => {
+    if (fb.date === currentSimDate) {
+      if (!itemsScores[fb.itemId]) {
+        itemsScores[fb.itemId] = { total: 0, count: 0 };
+      }
+      itemsScores[fb.itemId].total += fb.rating;
+      itemsScores[fb.itemId].count++;
+    }
+  });
+  Object.keys(itemsScores).forEach(itemId => {
+    const score = itemsScores[itemId];
+    const avg = score.total / score.count;
+    if (avg < 3.0) {
+      const item = allMeals.find(m => m.id === itemId);
+      const itemName = item ? item.name : itemId;
+      alerts.push({
+        type: 'warning',
+        text: `⭐ <strong>Low Ratings:</strong> ${itemName} average rating is critical (★ ${avg.toFixed(1)} based on ${score.count} reviews).`
+      });
+    }
+  });
+
+  if (alerts.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  
+  container.style.display = 'block';
+  
+  alerts.forEach(alert => {
+    const card = document.createElement('div');
+    card.className = `alert-card ${alert.type === 'critical' ? 'critical' : (alert.type === 'warning' ? 'warning' : 'info')}`;
+    card.style.marginBottom = '10px';
+    card.innerHTML = `
+      <div class="alert-body">
+        <span style="font-size:0.9rem;">${alert.text}</span>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+// Budget warning alert generator
+function triggerBudgetAlert() {
+  // Write to waste database
+  waste.push({
+    date: currentSimDate,
+    meal: "dinner",
+    itemId: "dal_rice",
+    wasteKg: 12.5 // high waste item
+  });
+  saveDB();
+  
+  showToast("🚨 Critical System Alert Triggered: Dinner waste threshold exceeded limit by 12.5 kg!");
+  
+  if (currentActiveRole === 'manager' && activeManagerTab === 'waste-tab') {
+    refreshWasteTab();
+  }
+}
+
+// ==========================================
+// POPULATE DEMO LOGINS DROPDOWN
+// ==========================================
+function prepopulateLogins() {
+  const select = document.getElementById('student-select');
+  select.innerHTML = '';
+  students.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.rollNo;
+    opt.textContent = `${s.name} (Roll: ${s.rollNo} • Status: ${s.paymentStatus})`;
+    select.appendChild(opt);
+  });
+}
+
+function onStudentSelectChange() {
+  const roll = document.getElementById('student-select').value;
+  const s = students.find(x => x.rollNo === roll);
+  if (s) {
+    const expired = s.paymentStatus === 'Unpaid' && (new Date(s.messDueDate) < new Date(currentSimDate));
+    if (expired) {
+      document.getElementById('login-helper-text').innerHTML = `Student subscription is <span style="color:var(--red-dark); font-weight:700;">Expired</span>. Log in to test payment warning alerts.`;
+    } else if (s.paymentStatus === 'Unpaid') {
+      document.getElementById('login-helper-text').innerHTML = `Student fee is due in 3 days. Log in to check alerts and test simulated checkout.`;
+    } else {
+      document.getElementById('login-helper-text').innerHTML = `Student account is fully active. Password: <strong>student123</strong>.`;
+    }
+  }
+}
+
+// ==========================================
+// CHARTS & VISUALISATIONS
+// ==========================================
+let managerForecastChartInstance = null;
+let managerWasteChartInstance = null;
+let adminFinancialChartInstance = null;
+
+function renderManagerForecastChart() {
+  const ctx = document.getElementById('manager-forecast-chart');
+  if (!ctx) return;
+  
+  if (managerForecastChartInstance) {
+    managerForecastChartInstance.destroy();
+  }
+  
+  // Fetch forecast data dynamically based on absences
+  const total = students.length;
+  const currentMeal = getCurrentMealSlotByTime();
+  const absences = attendance.filter(a => a.date === currentSimDate && a[currentMeal]).length;
+  
+  const baseLine = total - absences;
+  
+  managerForecastChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Thu', 'Fri (Today)', 'Sat', 'Sun', 'Mon', 'Tue', 'Wed'],
+      datasets: [
+        {
+          label: 'Breakfast',
+          data: [142, Math.max(1, Math.round(baseLine * 0.8)), 110, 95, 165, 158, 145],
+          backgroundColor: 'rgba(59, 130, 246, 0.7)'
+        },
+        {
+          label: 'Lunch',
+          data: [187, Math.max(1, Math.round(baseLine * 1.1)), 130, 115, 195, 188, 180],
+          backgroundColor: 'rgba(16, 185, 129, 0.8)'
+        },
+        {
+          label: 'Dinner',
+          data: [161, Math.max(1, Math.round(baseLine * 0.95)), 120, 105, 170, 162, 158],
+          backgroundColor: 'rgba(245, 158, 11, 0.7)'
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: { color: '#f1f5f9' }
+        },
+        x: { grid: { display: false } }
+      },
+      plugins: {
+        legend: { position: 'top', labels: { font: { family: 'Inter' } } }
+      }
+    }
+  });
+}
+
+function renderManagerWasteChart() {
+  const ctx = document.getElementById('manager-waste-chart');
+  if (!ctx) return;
+  
+  if (managerWasteChartInstance) {
+    managerWasteChartInstance.destroy();
+  }
+  
+  // Calculate last 7 days waste totals
+  const dates = [];
+  const wasteData = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(currentSimDate);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    dates.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
+    
+    // Sum waste for that date
+    const dayWaste = waste.filter(w => w.date === dateStr);
+    const sum = dayWaste.reduce((acc, curr) => acc + parseFloat(curr.wasteKg), 0);
+    wasteData.push(sum > 0 ? sum : Math.max(8, 18 - i * 1.2 + Math.sin(i) * 2));
+  }
+  
+  managerWasteChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: dates,
+      datasets: [{
+        label: 'Food Waste (kg)',
+        data: wasteData,
+        borderColor: '#ef4444',
+        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+        fill: true,
+        tension: 0.3,
+        borderWidth: 3,
+        pointRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { grid: { color: '#f1f5f9' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderAdminCharts() {
+  const ctx = document.getElementById('admin-financial-chart');
+  if (!ctx) return;
+  
+  if (adminFinancialChartInstance) {
+    adminFinancialChartInstance.destroy();
+  }
+  
+  // Sum current active MRR
+  let totalMRR = 0;
+  hostels.forEach(h => {
+    if (h.status === 'Active') {
+      if (h.plan === 'Starter') totalMRR += 2999;
+      else if (h.plan === 'Growth') totalMRR += 4999;
+      else if (h.plan === 'Enterprise') totalMRR += 9999;
+    }
+  });
+  
+  adminFinancialChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['Q1 2026', 'Q2 2026 (Now)', 'Q3 2026 (Projected)', 'Q4 2026 (Projected)'],
+      datasets: [{
+        label: 'Platform Revenue MRR (₹)',
+        data: [totalMRR * 0.4, totalMRR, totalMRR * 1.8, totalMRR * 3.2],
+        backgroundColor: '#10b981',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        y: { grid: { color: '#f1f5f9' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ==========================================
+// WINDOW INITIALIZATION
+// ==========================================
+window.onload = function() {
+  initDB();
+  initSandboxControls();
+  prepopulateLogins();
+  onStudentSelectChange();
+};
+</script>
+</body>
+</html>

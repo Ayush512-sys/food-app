@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoodBack — Hostel Food Feedback & Waste Reduction</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --green:#1a7a4a;--green-light:#e8f5ee;--green-mid:#d4e8db;--green-dark:#0f5c34;
+  --amber:#b45309;--amber-light:#fef3c7;
+  --red:#dc2626;--red-light:#fee2e2;
+  --blue:#1d4ed8;--blue-light:#eff6ff;
+  --bg:#f3f6f4;--card:#fff;--border:#e2e8e4;
+  --text:#111;--muted:#6b7f72;--hint:#aab5ad;
+  --radius:14px;--radius-sm:10px;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px}
+
+/* NAV */
+.nav{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;height:58px;background:var(--card);
+  border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;
+}
+.logo{font-family:'Syne',sans-serif;font-size:1.25rem;font-weight:800;letter-spacing:-0.02em}
+.logo span{color:var(--green)}
+.nav-tabs{display:flex;gap:4px}
+.nav-tab{
+  display:flex;align-items:center;gap:7px;padding:7px 16px;
+  border-radius:50px;border:1px solid transparent;
+  font-size:0.85rem;font-weight:500;cursor:pointer;
+  color:var(--muted);background:none;font-family:'DM Sans',sans-serif;
+  transition:all 0.18s;white-space:nowrap;
+}
+.nav-tab svg{width:15px;height:15px;flex-shrink:0}
+.nav-tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+.nav-tab:hover:not(.active){background:var(--green-light);color:var(--green);border-color:var(--green-mid)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.alert-btn{
+  position:relative;padding:7px;border-radius:50%;border:1px solid var(--border);
+  background:none;cursor:pointer;display:flex;color:var(--muted);
+  transition:background 0.15s;
+}
+.alert-btn:hover{background:var(--green-light);color:var(--green)}
+.alert-dot{
+  position:absolute;top:5px;right:5px;width:8px;height:8px;
+  border-radius:50%;background:var(--red);border:2px solid var(--card);display:none;
+}
+.alert-dot.visible{display:block}
+
+/* PAGES */
+.page{display:none;max-width:1100px;margin:0 auto;padding:28px 24px}
+.page.active{display:block}
+
+/* PAGE HEADER */
+.page-header{margin-bottom:24px}
+.page-title{font-family:'Syne',sans-serif;font-size:1.35rem;font-weight:700;margin-bottom:4px}
+.page-sub{font-size:0.88rem;color:var(--muted)}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.card-title{font-size:0.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:14px}
+
+/* METRIC GRID */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.metric{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px}
+.metric-label{font-size:0.76rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+.metric-val{font-family:'Syne',sans-serif;font-weight:700;font-size:2.1rem;line-height:1;margin-bottom:4px}
+.metric-val.green{color:var(--green)} .metric-val.amber{color:var(--amber)} .metric-val.red{color:var(--red)} .metric-val.blue{color:var(--blue)}
+.metric-delta{font-size:0.78rem;color:var(--muted)}
+.metric-delta.up{color:var(--green)} .metric-delta.down{color:var(--red)}
+
+/* TWO COLS */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px}
+
+/* ── STUDENT PAGE ── */
+.meal-slot{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:18px;margin-bottom:12px;
+}
+.meal-slot-name{font-weight:500;font-size:1rem;margin-bottom:2px}
+.meal-slot-type{font-size:0.8rem;color:var(--muted);margin-bottom:12px}
+.stars{display:flex;gap:6px;margin-bottom:10px}
+.star{font-size:28px;cursor:pointer;color:#ddd;transition:color 0.12s;user-select:none;line-height:1}
+.star.lit{color:#f59e0b}
+textarea.comment{
+  width:100%;padding:9px 12px;border:1px solid var(--border);
+  border-radius:var(--radius-sm);font-size:0.87rem;resize:none;
+  background:#f9faf9;color:var(--text);font-family:'DM Sans',sans-serif;
+  outline:none;transition:border-color 0.18s;
+}
+textarea.comment:focus{border-color:var(--green)}
+.btn-primary{
+  width:100%;margin-top:16px;padding:13px;
+  background:var(--green);color:#fff;border:none;
+  border-radius:var(--radius-sm);font-size:1rem;font-weight:600;
+  cursor:pointer;font-family:'DM Sans',sans-serif;
+  transition:background 0.18s,transform 0.12s;
+}
+.btn-primary:hover{background:var(--green-dark);transform:translateY(-1px)}
+.success-banner{
+  display:none;text-align:center;padding:22px;
+  background:var(--green-light);border-radius:var(--radius);
+  color:var(--green);font-weight:500;font-size:1rem;margin-top:12px;
+  border:1px solid var(--green-mid);
+}
+.attendance-note{
+  background:var(--blue-light);border:1px solid #bfdbfe;border-radius:var(--radius);
+  padding:14px 18px;margin-bottom:20px;font-size:0.87rem;color:#1e3a8a;display:flex;align-items:center;gap:10px;
+}
+.attendance-note svg{width:18px;height:18px;flex-shrink:0;color:#3b82f6}
+.meal-tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap}
+.meal-tab{
+  padding:7px 16px;border-radius:50px;border:1px solid var(--border);
+  font-size:0.85rem;cursor:pointer;background:none;font-family:'DM Sans',sans-serif;
+  color:var(--muted);transition:all 0.15s;
+}
+.meal-tab.active{background:var(--green);color:#fff;border-color:var(--green)}
+
+/* ── DASHBOARD ── */
+.bar-chart{display:flex;flex-direction:column;gap:9px}
+.bar-row{display:flex;align-items:center;gap:10px}
+.bar-lbl{width:80px;font-size:0.82rem;color:var(--muted);text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:14px;background:#f0f4f1;border-radius:5px;overflow:hidden}
+.bar-fill{height:100%;border-radius:5px;transition:width 0.6s ease}
+.bar-val{width:40px;font-size:0.82rem;color:var(--muted);font-weight:500}
+
+.fb-list{display:flex;flex-direction:column;gap:8px;max-height:320px;overflow-y:auto}
+.fb-item{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px 14px;
+}
+.fb-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.fb-meal{font-size:0.88rem;font-weight:500}
+.fb-time{font-size:0.76rem;color:var(--hint)}
+.fb-stars{font-size:0.8rem;color:#f59e0b;margin-bottom:3px}
+.fb-comment{font-size:0.82rem;color:var(--muted);font-style:italic}
+
+/* ── AI SECTION ── */
+.ai-box{
+  background:var(--card);border:1px solid var(--green-mid);border-radius:var(--radius);
+  padding:20px;margin-top:16px;
+}
+.ai-header{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.ai-title{font-weight:600;font-size:0.95rem}
+.badge{
+  font-size:0.7rem;padding:3px 10px;background:var(--green-light);
+  color:var(--green);border-radius:50px;font-weight:600;letter-spacing:0.04em;
+}
+.badge.amber{background:var(--amber-light);color:var(--amber)}
+.badge.red{background:var(--red-light);color:var(--red)}
+.ai-text{font-size:0.9rem;color:var(--muted);line-height:1.7;min-height:48px}
+.btn-outline{
+  margin-top:12px;padding:8px 16px;border:1px solid var(--green-mid);
+  background:none;border-radius:50px;font-size:0.85rem;cursor:pointer;
+  color:var(--green);font-family:'DM Sans',sans-serif;transition:background 0.15s;
+}
+.btn-outline:hover{background:var(--green-light)}
+.dot-anim::after{content:'';animation:dots 1.2s infinite steps(4,end)}
+@keyframes dots{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+
+/* ── API KEY ── */
+.api-input-row{
+  background:#fffbeb;border:1px solid #fde68a;border-radius:var(--radius-sm);
+  padding:12px 14px;margin-bottom:16px;font-size:0.83rem;color:#92400e;
+}
+.api-input-row strong{font-weight:600}
+.api-input-row input{
+  width:100%;margin-top:8px;padding:7px 10px;border:1px solid #fde68a;
+  border-radius:8px;font-size:0.85rem;background:#fffdf5;
+  font-family:'DM Sans',sans-serif;outline:none;color:#333;
+}
+
+/* ── FORECAST ── */
+.forecast-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.fc-card{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;text-align:center;
+}
+.fc-meal{font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px}
+.fc-num{font-family:'Syne',sans-serif;font-size:2rem;font-weight:700;color:var(--green);margin-bottom:4px}
+.fc-sub{font-size:0.8rem;color:var(--muted)}
+
+/* ── ALERTS ── */
+.alert-list{display:flex;flex-direction:column;gap:10px}
+.alert-item{
+  display:flex;align-items:flex-start;gap:12px;
+  padding:14px 16px;border-radius:var(--radius-sm);border:1px solid;
+}
+.alert-item.warn{background:var(--amber-light);border-color:#fcd34d;color:#78350f}
+.alert-item.danger{background:var(--red-light);border-color:#fca5a5;color:#7f1d1d}
+.alert-item.info{background:var(--blue-light);border-color:#bfdbfe;color:#1e3a8a}
+.alert-item.success{background:var(--green-light);border-color:var(--green-mid);color:#14532d}
+.alert-icon{width:20px;height:20px;flex-shrink:0;margin-top:1px}
+.alert-msg{font-size:0.87rem;font-weight:500;margin-bottom:2px}
+.alert-time{font-size:0.76rem;opacity:0.7}
+
+/* ── WASTE TRACKING ── */
+.waste-gauge{
+  display:flex;align-items:center;gap:20px;
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;margin-bottom:16px;
+}
+.gauge-ring{position:relative;width:80px;height:80px;flex-shrink:0}
+.gauge-ring svg{transform:rotate(-90deg)}
+.gauge-label{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;
+}
+.gauge-pct{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:700}
+.gauge-sub{font-size:0.65rem;color:var(--muted)}
+.waste-info{flex:1}
+.waste-title{font-weight:600;margin-bottom:4px}
+.waste-desc{font-size:0.86rem;color:var(--muted);line-height:1.5}
+
+/* ── REPORTS ── */
+.report-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btn-report{
+  display:flex;align-items:center;gap:8px;padding:10px 18px;
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--card);cursor:pointer;font-family:'DM Sans',sans-serif;
+  font-size:0.87rem;font-weight:500;color:var(--text);transition:all 0.15s;
+}
+.btn-report:hover{background:var(--green-light);border-color:var(--green-mid);color:var(--green)}
+.btn-report svg{width:16px;height:16px}
+
+/* ── ADMIN ── */
+.hostel-table{width:100%;border-collapse:collapse;font-size:0.87rem}
+.hostel-table th{
+  text-align:left;padding:10px 12px;font-size:0.76rem;
+  color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;
+  border-bottom:1px solid var(--border);
+}
+.hostel-table td{padding:10px 12px;border-bottom:1px solid var(--border)}
+.hostel-table tr:last-child td{border-bottom:none}
+.status-pill{
+  display:inline-block;padding:3px 10px;border-radius:50px;
+  font-size:0.76rem;font-weight:600;
+}
+.status-pill.active{background:var(--green-light);color:var(--green)}
+.status-pill.trial{background:var(--blue-light);color:var(--blue)}
+.status-pill.inactive{background:#f3f4f6;color:#6b7280}
+
+/* ── EMPTY STATE ── */
+.empty{text-align:center;padding:32px;color:var(--hint);font-size:0.9rem}
+
+/* ── CHART CONTAINERS ── */
+.chart-wrap{position:relative;width:100%;height:220px}
+.chart-wrap-tall{position:relative;width:100%;height:280px}
+
+/* ── TOAST ── */
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  background:#111;color:#fff;padding:12px 20px;border-radius:var(--radius-sm);
+  font-size:0.87rem;font-weight:500;display:none;
+  animation:slideUp 0.3s ease;
+}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* ── PROGRESS BAR ── */
+.prog-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.prog-label{width:100px;font-size:0.82rem;color:var(--muted);flex-shrink:0}
+.prog-track{flex:1;height:10px;background:#f0f4f1;border-radius:5px;overflow:hidden}
+.prog-fill{height:100%;border-radius:5px;transition:width 0.6s ease}
+.prog-val{width:36px;font-size:0.82rem;font-weight:500;color:var(--muted)}
+
+/* ── SCROLL ── */
+.fb-list::-webkit-scrollbar{width:4px}
+.fb-list::-webkit-scrollbar-track{background:var(--bg)}
+.fb-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+@media(max-width:720px){
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .two-col,.three-col,.forecast-cards{grid-template-columns:1fr}
+  .nav-tabs{gap:2px}
+  .nav-tab{padding:6px 10px;font-size:0.78rem}
+  .page{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="logo">Food<span>Back</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('student')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Feedback
+    </button>
+    <button class="nav-tab" onclick="showPage('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+      Dashboard
+    </button>
+    <button class="nav-tab" onclick="showPage('forecast')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M9 17V9l4 4 4-8"/></svg>
+      AI Forecast
+    </button>
+    <button class="nav-tab" onclick="showPage('waste')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      Waste
+    </button>
+    <button class="nav-tab" onclick="showPage('alerts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+      Alerts
+    </button>
+    <button class="nav-tab" onclick="showPage('admin')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      Admin
+    </button>
+  </div>
+  <div class="nav-right">
+    <button class="alert-btn" onclick="showPage('alerts')" title="Alerts">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+      <div class="alert-dot visible" id="nav-alert-dot"></div>
+    </button>
+  </div>
+</nav>
+
+<!-- ══════════════════════ STUDENT FEEDBACK ══════════════════════ -->
+<div id="page-student" class="page active">
+  <div style="max-width:600px;margin:0 auto">
+    <div class="page-header">
+      <div class="page-title">Rate Today's Meal</div>
+      <div class="page-sub">Scan the QR at the mess entrance — takes under 30 seconds</div>
+    </div>
+
+    <div class="attendance-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      <span>Your attendance data helps predict meal quantities and reduce waste. Today's predicted attendance: <strong>187 students</strong></span>
+    </div>
+
+    <div class="meal-tabs" id="meal-time-tabs">
+      <button class="meal-tab active" onclick="selectMealTime('breakfast',this)">🌅 Breakfast</button>
+      <button class="meal-tab" onclick="selectMealTime('lunch',this)">☀️ Lunch</button>
+      <button class="meal-tab" onclick="selectMealTime('dinner',this)">🌙 Dinner</button>
+    </div>
+
+    <div id="meal-form">
+      <div id="meals-container"></div>
+      <button class="btn-primary" onclick="submitFeedback()">✓ Submit Feedback</button>
+    </div>
+    <div class="success-banner" id="success-banner">
+      ✓ Feedback submitted! Thank you — your response helps reduce food waste. 🌱
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ MANAGER DASHBOARD ══════════════════════ -->
+<div id="page-dashboard" class="page">
+  <div class="page-header">
+    <div class="page-title">Manager Dashboard</div>
+    <div class="page-sub">Live feedback, ratings, and waste insights — MIT Pune Hostel A</div>
+  </div>
+
+  <div class="api-input-row">
+    <strong>AI Insights:</strong> Enter your Anthropic API key to enable Claude-powered recommendations
+    <input id="api-key" type="password" placeholder="sk-ant-api03-...">
+  </div>
+
+  <!-- Metrics -->
+  <div class="metrics">
+    <div class="metric">
+      <div class="metric-label">Submissions Today</div>
+      <div class="metric-val green" id="m-subs">0</div>
+      <div class="metric-delta up" id="m-subs-d">↑ from yesterday</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Avg Rating</div>
+      <div class="metric-val green" id="m-avg">—</div>
+      <div class="metric-delta" id="m-avg-d">out of 5 stars</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Waste Today (kg)</div>
+      <div class="metric-val amber" id="m-waste">18.4</div>
+      <div class="metric-delta down" id="m-waste-d">↓ 3.2 vs last week</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Low-rated Items</div>
+      <div class="metric-val red" id="m-low">0</div>
+      <div class="metric-delta" id="m-low-d">items below 3★</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- Ratings chart -->
+    <div class="card">
+      <div class="card-title">Item Ratings</div>
+      <div class="bar-chart" id="bar-chart">
+        <div class="empty">No feedback yet</div>
+      </div>
+    </div>
+
+    <!-- Waste trend -->
+    <div class="card">
+      <div class="card-title">Waste This Week (kg)</div>
+      <div class="chart-wrap">
+        <canvas id="wasteChart" role="img" aria-label="Waste trend this week">Daily waste: Mon 22, Tue 20, Wed 19, Thu 18, Fri 16, Sat 21, today 18.</canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent feedback -->
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-title">Recent Feedback</div>
+    <div class="fb-list" id="feedback-list">
+      <div class="empty">No feedback submitted yet. Ask students to rate their meals.</div>
+    </div>
+  </div>
+
+  <!-- AI Insights -->
+  <div class="ai-box">
+    <div class="ai-header">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>
+      <span class="ai-title">AI Waste Insights</span>
+      <span class="badge">Claude AI</span>
+    </div>
+    <div class="ai-text" id="ai-text" style="font-style:italic;color:var(--hint)">Submit feedback and add your API key above to get AI-powered waste reduction recommendations.</div>
+    <button class="btn-outline" id="ai-btn" onclick="getAIInsights()" style="display:none">↻ Regenerate insights</button>
+  </div>
+</div>
+
+<!-- ══════════════════════ AI DEMAND FORECAST ══════════════════════ -->
+<div id="page-forecast" class="page">
+  <div class="page-header">
+    <div class="page-title">AI Demand Forecast</div>
+    <div class="page-sub">ML-powered attendance and portion prediction — reduces waste by up to 35%</div>
+  </div>
+
+  <!-- Today's prediction -->
+  <div class="three-col">
+    <div class="card">
+      <div class="card-title">Breakfast Attendance</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:700;color:var(--green)">142</div>
+        <div style="font-size:0.85rem;color:var(--muted)">students</div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-top:4px">±12 confidence range</div>
+      <div style="margin-top:12px;font-size:0.8rem">
+        <span class="badge">Wednesday · Exam week</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Lunch Attendance</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:700;color:var(--green)">187</div>
+        <div style="font-size:0.85rem;color:var(--muted)">students</div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-top:4px">±15 confidence range</div>
+      <div style="margin-top:12px;font-size:0.8rem">
+        <span class="badge amber">High demand day</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Dinner Attendance</div>
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <div style="font-family:'Syne',sans-serif;font-size:2.2rem;font-weight:700;color:var(--amber)">161</div>
+        <div style="font-size:0.85rem;color:var(--muted)">students</div>
+      </div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-top:4px">±10 confidence range</div>
+      <div style="margin-top:12px;font-size:0.8rem">
+        <span class="badge">Normal turnout</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">7-Day Attendance Forecast</div>
+      <div class="chart-wrap-tall">
+        <canvas id="forecastChart" role="img" aria-label="7-day attendance forecast">Predicted students per day over next week.</canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Portion Recommendations (Today Lunch)</div>
+      <div style="margin-top:4px">
+        <div class="prog-row">
+          <div class="prog-label">Dal Rice</div>
+          <div class="prog-track"><div class="prog-fill" style="width:85%;background:var(--green)"></div></div>
+          <div class="prog-val" style="color:var(--green)">42 kg</div>
+        </div>
+        <div class="prog-row">
+          <div class="prog-label">Sabji</div>
+          <div class="prog-track"><div class="prog-fill" style="width:70%;background:var(--green)"></div></div>
+          <div class="prog-val" style="color:var(--green)">35 kg</div>
+        </div>
+        <div class="prog-row">
+          <div class="prog-label">Roti</div>
+          <div class="prog-track"><div class="prog-fill" style="width:90%;background:var(--amber)"></div></div>
+          <div class="prog-val" style="color:var(--amber)">375 pcs</div>
+        </div>
+        <div class="prog-row">
+          <div class="prog-label">Salad</div>
+          <div class="prog-track"><div class="prog-fill" style="width:55%;background:var(--green)"></div></div>
+          <div class="prog-val" style="color:var(--green)">18 kg</div>
+        </div>
+        <div class="prog-row">
+          <div class="prog-label">Sweet</div>
+          <div class="prog-track"><div class="prog-fill" style="width:60%;background:var(--green)"></div></div>
+          <div class="prog-val" style="color:var(--green)">150 pcs</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding:12px;background:var(--green-light);border-radius:var(--radius-sm);font-size:0.84rem;color:#14532d">
+        💡 Based on 187 predicted students, feedback history, and today's menu. Roti demand is high — consider extra batch.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Factors Influencing Forecast</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:4px">
+      <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+        <div style="font-size:0.76rem;color:var(--muted);margin-bottom:4px">Day of week</div>
+        <div style="font-weight:500">Wednesday <span style="color:var(--green);font-size:0.8rem">↑ +8%</span></div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+        <div style="font-size:0.76rem;color:var(--muted);margin-bottom:4px">Academic calendar</div>
+        <div style="font-weight:500">Exam week <span style="color:var(--red);font-size:0.8rem">↑ +12%</span></div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+        <div style="font-size:0.76rem;color:var(--muted);margin-bottom:4px">Last week same day</div>
+        <div style="font-weight:500">182 students</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+        <div style="font-size:0.76rem;color:var(--muted);margin-bottom:4px">Weather</div>
+        <div style="font-weight:500">Clear ☀️ <span style="color:var(--green);font-size:0.8rem">Normal</span></div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+        <div style="font-size:0.76rem;color:var(--muted);margin-bottom:4px">Model accuracy</div>
+        <div style="font-weight:500;color:var(--green)">87.3%</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+        <div style="font-size:0.76rem;color:var(--muted);margin-bottom:4px">Holidays nearby</div>
+        <div style="font-weight:500">None this week</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ WASTE TRACKING ══════════════════════ -->
+<div id="page-waste" class="page">
+  <div class="page-header">
+    <div class="page-title">Waste Tracking</div>
+    <div class="page-sub">Real-time waste data, trends, and cost accountability</div>
+  </div>
+
+  <!-- Gauges -->
+  <div class="three-col" style="margin-bottom:16px">
+    <div class="waste-gauge">
+      <div class="gauge-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#f0f4f1" stroke-width="8"/>
+          <circle cx="40" cy="40" r="30" fill="none" stroke="var(--amber)" stroke-width="8"
+            stroke-dasharray="188.5" stroke-dashoffset="94" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-label"><div class="gauge-pct" style="color:var(--amber)">50%</div><div class="gauge-sub">of target</div></div>
+      </div>
+      <div class="waste-info">
+        <div class="waste-title">Today's Waste</div>
+        <div class="waste-desc"><strong style="color:var(--amber)">18.4 kg</strong> of 37 kg daily target</div>
+      </div>
+    </div>
+    <div class="waste-gauge">
+      <div class="gauge-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#f0f4f1" stroke-width="8"/>
+          <circle cx="40" cy="40" r="30" fill="none" stroke="var(--green)" stroke-width="8"
+            stroke-dasharray="188.5" stroke-dashoffset="132" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-label"><div class="gauge-pct" style="color:var(--green)">30%</div><div class="gauge-sub">saved</div></div>
+      </div>
+      <div class="waste-info">
+        <div class="waste-title">Reduction vs Last Month</div>
+        <div class="waste-desc"><strong style="color:var(--green)">↓ 30%</strong> down from 26.4 kg/day avg</div>
+      </div>
+    </div>
+    <div class="waste-gauge">
+      <div class="gauge-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="30" fill="none" stroke="#f0f4f1" stroke-width="8"/>
+          <circle cx="40" cy="40" r="30" fill="none" stroke="var(--red)" stroke-width="8"
+            stroke-dasharray="188.5" stroke-dashoffset="38" stroke-linecap="round"/>
+        </svg>
+        <div class="gauge-label"><div class="gauge-pct" style="color:var(--red)">80%</div><div class="gauge-sub">cost</div></div>
+      </div>
+      <div class="waste-info">
+        <div class="waste-title">Monthly Cost of Waste</div>
+        <div class="waste-desc"><strong style="color:var(--red)">₹4,200</strong> this month · ₹840/day avg</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="card-title">Waste by Item (kg today)</div>
+      <div style="margin-top:4px">
+        <div class="bar-row" style="margin-bottom:9px">
+          <div class="bar-lbl">Dal Rice</div>
+          <div class="bar-track"><div class="bar-fill" style="width:75%;background:var(--amber)"></div></div>
+          <div class="bar-val">5.6 kg</div>
+        </div>
+        <div class="bar-row" style="margin-bottom:9px">
+          <div class="bar-lbl">Sabji</div>
+          <div class="bar-track"><div class="bar-fill" style="width:50%;background:var(--amber)"></div></div>
+          <div class="bar-val">3.8 kg</div>
+        </div>
+        <div class="bar-row" style="margin-bottom:9px">
+          <div class="bar-lbl">Roti</div>
+          <div class="bar-track"><div class="bar-fill" style="width:30%;background:var(--green)"></div></div>
+          <div class="bar-val">2.1 kg</div>
+        </div>
+        <div class="bar-row" style="margin-bottom:9px">
+          <div class="bar-lbl">Salad</div>
+          <div class="bar-track"><div class="bar-fill" style="width:85%;background:var(--red)"></div></div>
+          <div class="bar-val">6.3 kg</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-lbl">Sweet</div>
+          <div class="bar-track"><div class="bar-fill" style="width:8%;background:var(--green)"></div></div>
+          <div class="bar-val">0.6 kg</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">30-Day Waste Trend (kg/day)</div>
+      <div class="chart-wrap-tall">
+        <canvas id="wasteTrendChart" role="img" aria-label="30-day waste trend">Waste gradually decreasing from 28kg to 18kg over 30 days.</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Monthly Waste Comparison</div>
+    <div class="chart-wrap">
+      <canvas id="wasteMonthChart" role="img" aria-label="Monthly waste comparison">Waste reduction across months.</canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ SMART ALERTS ══════════════════════ -->
+<div id="page-alerts" class="page">
+  <div class="page-header">
+    <div class="page-title">Smart Alerts</div>
+    <div class="page-sub">Automated alerts when waste exceeds thresholds or quality drops</div>
+  </div>
+
+  <div class="two-col">
+    <div>
+      <div class="card-title" style="margin-bottom:12px">Active Alerts</div>
+      <div class="alert-list" id="alerts-list">
+        <div class="alert-item danger">
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div class="alert-msg">Salad waste critical — 6.3 kg today (↑ 112% above threshold)</div>
+            <div class="alert-time">Today 1:45 PM · Lunch service</div>
+          </div>
+        </div>
+        <div class="alert-item warn">
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div class="alert-msg">Dal Rice rated 2.4★ — below 3★ quality threshold</div>
+            <div class="alert-time">Today 1:52 PM · 14 student reports</div>
+          </div>
+        </div>
+        <div class="alert-item info">
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          <div>
+            <div class="alert-msg">Low attendance expected tomorrow — adjust portion sizes</div>
+            <div class="alert-time">Forecast alert · 43 students predicted absent</div>
+          </div>
+        </div>
+        <div class="alert-item success">
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+          <div>
+            <div class="alert-msg">Roti waste under target for 7 consecutive days 🎉</div>
+            <div class="alert-time">Achievement unlocked · Monday to today</div>
+          </div>
+        </div>
+        <div class="alert-item warn">
+          <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <div>
+            <div class="alert-msg">Weekly waste cost ₹3,890 — approaching ₹4,000 budget limit</div>
+            <div class="alert-time">Budget alert · Thursday week-to-date</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:12px">Alert Settings</div>
+      <div class="card">
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500;font-size:0.9rem">Waste threshold alert</div>
+              <div style="font-size:0.8rem;color:var(--muted)">Alert when item waste exceeds 3 kg</div>
+            </div>
+            <label style="cursor:pointer">
+              <input type="checkbox" checked style="width:18px;height:18px;accent-color:var(--green)">
+            </label>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500;font-size:0.9rem">Low rating alert</div>
+              <div style="font-size:0.8rem;color:var(--muted)">Alert when avg rating drops below 3★</div>
+            </div>
+            <label style="cursor:pointer">
+              <input type="checkbox" checked style="width:18px;height:18px;accent-color:var(--green)">
+            </label>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500;font-size:0.9rem">Low attendance alert</div>
+              <div style="font-size:0.8rem;color:var(--muted)">Alert when predicted attendance drops 20%+</div>
+            </div>
+            <label style="cursor:pointer">
+              <input type="checkbox" checked style="width:18px;height:18px;accent-color:var(--green)">
+            </label>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:12px;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-weight:500;font-size:0.9rem">Weekly PDF report</div>
+              <div style="font-size:0.8rem;color:var(--muted)">Auto-email report every Monday 8 AM</div>
+            </div>
+            <label style="cursor:pointer">
+              <input type="checkbox" checked style="width:18px;height:18px;accent-color:var(--green)">
+            </label>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <div style="font-weight:500;font-size:0.9rem">WhatsApp alerts</div>
+              <div style="font-size:0.8rem;color:var(--muted)">Send critical alerts via WhatsApp</div>
+            </div>
+            <label style="cursor:pointer">
+              <input type="checkbox" style="width:18px;height:18px;accent-color:var(--green)">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-title" style="margin:20px 0 12px">Export Reports</div>
+      <div class="report-btns">
+        <button class="btn-report" onclick="generateReport('weekly')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Weekly PDF
+        </button>
+        <button class="btn-report" onclick="generateReport('monthly')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Monthly PDF
+        </button>
+        <button class="btn-report" onclick="generateReport('csv')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ ADMIN ══════════════════════ -->
+<div id="page-admin" class="page">
+  <div class="page-header">
+    <div class="page-title">Admin Panel</div>
+    <div class="page-sub">Multi-hostel management, subscriptions, and analytics</div>
+  </div>
+
+  <!-- Summary metrics -->
+  <div class="metrics" style="margin-bottom:20px">
+    <div class="metric">
+      <div class="metric-label">Active Hostels</div>
+      <div class="metric-val green">3</div>
+      <div class="metric-delta">of 5 pilot confirmed</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Students on Platform</div>
+      <div class="metric-val blue">340+</div>
+      <div class="metric-delta up">↑ 28 this week</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Avg Waste Reduction</div>
+      <div class="metric-val green">28%</div>
+      <div class="metric-delta up">↑ across all hostels</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">MRR</div>
+      <div class="metric-val green">₹0</div>
+      <div class="metric-delta">Free pilot phase</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- Hostel list -->
+    <div class="card">
+      <div class="card-title">Managed Hostels</div>
+      <table class="hostel-table">
+        <thead>
+          <tr>
+            <th>Hostel</th>
+            <th>Students</th>
+            <th>Plan</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>MIT Pune — Hostel A</strong><br><span style="font-size:0.78rem;color:var(--muted)">440 beds · Mess A</span></td>
+            <td>187</td>
+            <td>Growth</td>
+            <td><span class="status-pill active">Active</span></td>
+          </tr>
+          <tr>
+            <td><strong>COEP Hostel</strong><br><span style="font-size:0.78rem;color:var(--muted)">280 beds · Main Mess</span></td>
+            <td>142</td>
+            <td>Starter</td>
+            <td><span class="status-pill active">Active</span></td>
+          </tr>
+          <tr>
+            <td><strong>VIT Pune Hostel B</strong><br><span style="font-size:0.78rem;color:var(--muted)">320 beds · Block B</span></td>
+            <td>98</td>
+            <td>Starter</td>
+            <td><span class="status-pill trial">Trial</span></td>
+          </tr>
+          <tr>
+            <td><strong>PICT Hostel</strong><br><span style="font-size:0.78rem;color:var(--muted)">180 beds</span></td>
+            <td>—</td>
+            <td>—</td>
+            <td><span class="status-pill inactive">Pending</span></td>
+          </tr>
+          <tr>
+            <td><strong>SPPU Hostel</strong><br><span style="font-size:0.78rem;color:var(--muted)">600 beds · 2 Messes</span></td>
+            <td>—</td>
+            <td>Enterprise</td>
+            <td><span class="status-pill inactive">LOI signed</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Revenue projections -->
+    <div class="card">
+      <div class="card-title">Revenue Projection (3-Year)</div>
+      <div class="chart-wrap-tall">
+        <canvas id="revenueChart" role="img" aria-label="3-year revenue projection">Projected revenue growing from 0 in Year 1 to peak in Year 3.</canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <!-- Pricing tiers -->
+    <div class="card">
+      <div class="card-title">Pricing Tiers</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+          <div>
+            <div style="font-weight:600">Starter</div>
+            <div style="font-size:0.8rem;color:var(--muted)">Up to 200 students</div>
+          </div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--green)">₹2,999<span style="font-size:0.75rem;font-weight:400;color:var(--muted)">/mo</span></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--green-light);border-radius:var(--radius-sm);border:1px solid var(--green-mid)">
+          <div>
+            <div style="font-weight:600">Growth <span class="badge" style="font-size:0.68rem;margin-left:6px">Popular</span></div>
+            <div style="font-size:0.8rem;color:var(--muted)">Up to 600 students + analytics</div>
+          </div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--green)">₹4,999<span style="font-size:0.75rem;font-weight:400;color:var(--muted)">/mo</span></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;background:var(--bg);border-radius:var(--radius-sm)">
+          <div>
+            <div style="font-weight:600">Enterprise</div>
+            <div style="font-size:0.8rem;color:var(--muted)">Multi-mess + custom reports</div>
+          </div>
+          <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--green)">₹9,999<span style="font-size:0.75rem;font-weight:400;color:var(--muted)">/mo</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Traction & GTM -->
+    <div class="card">
+      <div class="card-title">Traction & Milestones</div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+          </div>
+          <div><div style="font-weight:500;font-size:0.9rem">3 pilot hostels confirmed</div><div style="font-size:0.8rem;color:var(--muted)">MIT, COEP, VIT Pune</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+          </div>
+          <div><div style="font-weight:500;font-size:0.9rem">340+ students on waitlist</div><div style="font-size:0.8rem;color:var(--muted)">Zero marketing spend</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+          </div>
+          <div><div style="font-weight:500;font-size:0.9rem">1 LOI from university</div><div style="font-size:0.8rem;color:var(--muted)">SPPU — 600-bed hostel</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--amber-light);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          </div>
+          <div><div style="font-weight:500;font-size:0.9rem">Raising ₹25L seed round</div><div style="font-size:0.8rem;color:var(--muted)">50 hostels · 2 FT engineers</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+// DATA
+// ─────────────────────────────────────────────
+const MENUS = {
+  breakfast: [
+    {id:'poha', name:'Poha', type:'Main'},
+    {id:'chai', name:'Chai & Milk', type:'Beverage'},
+    {id:'bread', name:'Bread & Butter', type:'Side'},
+    {id:'fruit', name:'Banana / Seasonal Fruit', type:'Side'},
+  ],
+  lunch: [
+    {id:'dal_rice', name:'Dal Rice', type:'Main'},
+    {id:'sabji', name:'Sabji (Mixed Veg)', type:'Side'},
+    {id:'roti', name:'Roti', type:'Bread'},
+    {id:'salad', name:'Salad', type:'Side'},
+    {id:'sweet', name:'Gulab Jamun', type:'Sweet'},
+  ],
+  dinner: [
+    {id:'rice', name:'Jeera Rice', type:'Main'},
+    {id:'dal_makhni', name:'Dal Makhni', type:'Main'},
+    {id:'chapati', name:'Chapati', type:'Bread'},
+    {id:'raita', name:'Raita', type:'Side'},
+  ]
+};
+
+let currentMeal = 'lunch';
+let ratings = {};
+let comments = {};
+let allFeedback = [];
+
+// ─────────────────────────────────────────────
+// NAV
+// ─────────────────────────────────────────────
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  const tabs = ['student','dashboard','forecast','waste','alerts','admin'];
+  document.querySelectorAll('.nav-tab')[tabs.indexOf(id)]?.classList.add('active');
+  if (id === 'dashboard') refreshDashboard();
+  if (id === 'forecast') renderForecastChart();
+  if (id === 'waste') renderWasteCharts();
+  if (id === 'admin') renderAdminCharts();
+}
+
+// ─────────────────────────────────────────────
+// STUDENT FEEDBACK
+// ─────────────────────────────────────────────
+function selectMealTime(meal, btn) {
+  currentMeal = meal;
+  document.querySelectorAll('.meal-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  buildForm();
+}
+
+function buildForm() {
+  const items = MENUS[currentMeal];
+  items.forEach(m => { ratings[m.id] = 0; comments[m.id] = ''; });
+  const c = document.getElementById('meals-container');
+  c.innerHTML = '';
+  items.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'meal-slot';
+    div.innerHTML = `
+      <div class="meal-slot-name">${m.name}</div>
+      <div class="meal-slot-type">${m.type}</div>
+      <div class="stars" id="stars-${m.id}">
+        ${[1,2,3,4,5].map(n => `<span class="star" onclick="setRating('${m.id}',${n})">★</span>`).join('')}
+      </div>
+      <textarea class="comment" rows="2" placeholder="Optional comment (e.g. too salty, less oil)…"
+        oninput="comments['${m.id}']=this.value"></textarea>`;
+    c.appendChild(div);
+  });
+}
+
+function setRating(id, val) {
+  ratings[id] = val;
+  document.querySelectorAll(`#stars-${id} .star`).forEach((s, i) => {
+    s.classList.toggle('lit', i < val);
+  });
+}
+
+function submitFeedback() {
+  const rated = MENUS[currentMeal].filter(m => ratings[m.id] > 0);
+  if (!rated.length) { showToast('Please rate at least one item.'); return; }
+  allFeedback.push({
+    time: new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}),
+    mealTime: currentMeal,
+    meals: MENUS[currentMeal]
+      .map(m => ({...m, rating: ratings[m.id], comment: comments[m.id]}))
+      .filter(m => m.rating > 0)
+  });
+  document.getElementById('meal-form').style.display = 'none';
+  const banner = document.getElementById('success-banner');
+  banner.style.display = 'block';
+  setTimeout(() => {
+    banner.style.display = 'none';
+    document.getElementById('meal-form').style.display = 'block';
+    buildForm();
+  }, 2800);
+}
+
+// ─────────────────────────────────────────────
+// DASHBOARD
+// ─────────────────────────────────────────────
+function refreshDashboard() {
+  const allItems = MENUS[currentMeal];
+  const totals = {}, counts = {};
+  allItems.forEach(m => { totals[m.id] = 0; counts[m.id] = 0; });
+  MENUS.lunch.forEach(m => { totals[m.id] = 0; counts[m.id] = 0; });
+  allFeedback.forEach(fb => fb.meals.forEach(m => {
+    if (totals[m.id] !== undefined) { totals[m.id] += m.rating; counts[m.id]++; }
+    else { totals[m.id] = m.rating; counts[m.id] = 1; }
+  }));
+
+  const totalItems = Object.values(counts).reduce((a,b)=>a+b,0);
+  const totalScore = Object.values(totals).reduce((a,b)=>a+b,0);
+  const avg = totalItems > 0 ? (totalScore / totalItems).toFixed(1) : null;
+  const lowCount = Object.keys(counts).filter(id => counts[id]>0 && totals[id]/counts[id]<3).length;
+
+  document.getElementById('m-subs').textContent = allFeedback.length;
+  const avgEl = document.getElementById('m-avg');
+  avgEl.textContent = avg ? avg + '/5' : '—';
+  avgEl.className = 'metric-val ' + (!avg ? 'green' : avg < 3 ? 'amber' : 'green');
+  document.getElementById('m-low').textContent = lowCount;
+
+  // Bar chart
+  const allMeals = [...MENUS.breakfast, ...MENUS.lunch, ...MENUS.dinner];
+  const seen = new Set();
+  const uniqMeals = allMeals.filter(m => { if(seen.has(m.id)) return false; seen.add(m.id); return true; });
+  const maxCount = Math.max(...uniqMeals.map(m => counts[m.id]||0), 1);
+  const chart = document.getElementById('bar-chart');
+  const ratedMeals = uniqMeals.filter(m => counts[m.id]>0);
+  if (!ratedMeals.length) { chart.innerHTML = '<div class="empty">No feedback yet</div>'; }
+  else {
+    chart.innerHTML = ratedMeals.map(m => {
+      const a = (totals[m.id]/counts[m.id]).toFixed(1);
+      const pct = Math.round((counts[m.id]/maxCount)*100);
+      const col = a<3 ? 'var(--amber)' : 'var(--green)';
+      return `<div class="bar-row">
+        <div class="bar-lbl">${m.name.split(' ')[0]}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${col}"></div></div>
+        <div class="bar-val">★${a}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // Feedback list
+  const list = document.getElementById('feedback-list');
+  if (!allFeedback.length) {
+    list.innerHTML = '<div class="empty">No feedback submitted yet.<br>Ask students to rate their meals.</div>';
+  } else {
+    list.innerHTML = [...allFeedback].reverse().slice(0,15).map(fb => `
+      <div class="fb-item">
+        <div class="fb-top">
+          <div class="fb-meal">${fb.mealTime.charAt(0).toUpperCase()+fb.mealTime.slice(1)} · ${fb.meals.map(m=>m.name).join(', ')}</div>
+          <div class="fb-time">${fb.time}</div>
+        </div>
+        <div class="fb-stars">${fb.meals.map(m=>'★'.repeat(m.rating)+'☆'.repeat(5-m.rating)+' '+m.name.split(' ')[0]).join(' · ')}</div>
+        ${fb.meals.filter(m=>m.comment).map(m=>`<div class="fb-comment">"${m.comment}"</div>`).join('')}
+      </div>`).join('');
+  }
+
+  // Waste chart
+  renderWasteBarChart();
+  if (allFeedback.length > 0) {
+    document.getElementById('ai-btn').style.display = 'inline-block';
+    getAIInsights();
+  }
+}
+
+// ─────────────────────────────────────────────
+// CHARTS
+// ─────────────────────────────────────────────
+let chartInstances = {};
+function destroyChart(id) {
+  if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}
+}
+
+function renderWasteBarChart() {
+  destroyChart('wasteChart');
+  const ctx = document.getElementById('wasteChart');
+  if(!ctx) return;
+  chartInstances['wasteChart'] = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels:['Mon','Tue','Wed','Thu','Fri','Sat','Today'],
+      datasets:[{
+        label:'Waste (kg)',
+        data:[22,20,19,18,16,21,18.4],
+        borderColor:'#1a7a4a',backgroundColor:'rgba(26,122,74,0.08)',
+        fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#1a7a4a'
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:false,min:12,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+  });
+}
+
+function renderForecastChart() {
+  destroyChart('forecastChart');
+  const ctx = document.getElementById('forecastChart');
+  if(!ctx) return;
+  chartInstances['forecastChart'] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['Thu','Fri','Sat','Sun','Mon','Tue','Wed'],
+      datasets:[
+        {label:'Breakfast',data:[142,138,110,95,165,158,145],backgroundColor:'rgba(26,122,74,0.6)'},
+        {label:'Lunch',data:[187,182,130,115,195,188,180],backgroundColor:'rgba(26,122,74,0.9)'},
+        {label:'Dinner',data:[161,155,120,105,170,162,158],backgroundColor:'rgba(15,92,52,0.7)'},
+      ]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}}},
+      scales:{x:{grid:{display:false}},y:{beginAtZero:false,min:80,grid:{color:'rgba(0,0,0,0.05)'}}}}
+  });
+}
+
+function renderWasteCharts() {
+  destroyChart('wasteTrendChart');
+  destroyChart('wasteMonthChart');
+
+  const trendCtx = document.getElementById('wasteTrendChart');
+  if(trendCtx) {
+    const data30 = Array.from({length:30},(_,i)=>Math.max(14,28-i*0.38+Math.sin(i)*1.5));
+    chartInstances['wasteTrendChart'] = new Chart(trendCtx, {
+      type:'line',
+      data:{
+        labels:Array.from({length:30},(_,i)=>{const d=new Date();d.setDate(d.getDate()-29+i);return d.getDate()+'/'+(d.getMonth()+1)}),
+        datasets:[{
+          label:'kg/day',data:data30,
+          borderColor:'#1a7a4a',backgroundColor:'rgba(26,122,74,0.07)',
+          fill:true,tension:0.4,pointRadius:0,borderWidth:2
+        },{
+          label:'Target (18kg)',
+          data:Array(30).fill(18),
+          borderColor:'#b45309',borderDash:[6,4],borderWidth:1.5,
+          pointRadius:0,fill:false,
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,labels:{font:{size:11},boxWidth:12}}},
+        scales:{y:{min:10,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false},ticks:{maxTicksLimit:8}}}}
+    });
+  }
+
+  const monthCtx = document.getElementById('wasteMonthChart');
+  if(monthCtx) {
+    chartInstances['wasteMonthChart'] = new Chart(monthCtx, {
+      type:'bar',
+      data:{
+        labels:['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May'],
+        datasets:[{
+          label:'Avg kg/day',
+          data:[28.4,27.1,25.8,24.2,22.9,21.4,20.1,19.2,18.8,18.4],
+          backgroundColor:['#dc2626','#dc2626','#b45309','#b45309','#b45309','#1a7a4a','#1a7a4a','#1a7a4a','#1a7a4a','#1a7a4a']
+        }]
+      },
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:false,min:14,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{display:false}}}}
+    });
+  }
+}
+
+function renderAdminCharts() {
+  destroyChart('revenueChart');
+  const ctx = document.getElementById('revenueChart');
+  if(!ctx) return;
+  chartInstances['revenueChart'] = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels:['Q1 Y1','Q2 Y1','Q3 Y1','Q4 Y1','Q1 Y2','Q2 Y2','Q3 Y2','Q4 Y2','Q1 Y3','Q2 Y3','Q3 Y3','Q4 Y3'],
+      datasets:[{
+        label:'MRR (₹)',
+        data:[0,0,150000,250000,400000,600000,900000,1200000,1600000,2100000,2700000,3300000],
+        backgroundColor:'rgba(26,122,74,0.8)',borderRadius:4
+      }]
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        y:{grid:{color:'rgba(0,0,0,0.05)'},ticks:{callback:v=>'₹'+(v>=100000?(v/100000).toFixed(1)+'L':v)}},
+        x:{grid:{display:false},ticks:{maxRotation:45,font:{size:10}}}
+      }}
+  });
+}
+
+// ─────────────────────────────────────────────
+// AI INSIGHTS
+// ─────────────────────────────────────────────
+async function getAIInsights() {
+  if(!allFeedback.length) return;
+  const apiKey = document.getElementById('api-key').value.trim();
+  const aiText = document.getElementById('ai-text');
+  if(!apiKey){
+    aiText.style.fontStyle='italic';aiText.style.color='var(--hint)';
+    aiText.textContent='Add your Anthropic API key to get AI-powered insights.';
+    return;
+  }
+  aiText.style.fontStyle='normal';aiText.style.color='var(--muted)';
+  aiText.innerHTML='Analysing feedback<span class="dot-anim"></span>';
+
+  const allMeals = [...new Map([...MENUS.breakfast,...MENUS.lunch,...MENUS.dinner].map(m=>[m.id,m])).values()];
+  const summary = allMeals.map(m => {
+    const rs = allFeedback.flatMap(fb=>fb.meals.filter(x=>x.id===m.id).map(x=>x.rating));
+    const cs = allFeedback.flatMap(fb=>fb.meals.filter(x=>x.id===m.id&&x.comment).map(x=>x.comment));
+    if(!rs.length) return null;
+    const avg = (rs.reduce((a,b)=>a+b,0)/rs.length).toFixed(1);
+    return `${m.name}: avg ${avg}/5 (${rs.length} ratings)${cs.length?'; comments: '+cs.join('; '):''}`;
+  }).filter(Boolean).join('\n');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:350,
+        messages:[{role:'user',content:`You are a hostel mess waste reduction advisor in India. Based on student meal feedback, give 3-4 sentences of practical insight for the mess manager. Mention: which items are underperforming, specific waste risks, and one actionable step to reduce waste today.\n\nFeedback data:\n${summary}`}]
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
+    aiText.style.fontStyle='normal';aiText.style.color='var(--text)';
+    aiText.textContent = data.content?.map(b=>b.text||'').join('')||'No insights returned.';
+  } catch(e) {
+    aiText.style.color='var(--red)';
+    aiText.textContent='Error: '+e.message;
+  }
+}
+
+// ─────────────────────────────────────────────
+// TOAST & UTILS
+// ─────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.display = 'block';
+  setTimeout(()=>t.style.display='none', 2800);
+}
+
+function generateReport(type) {
+  const labels = {weekly:'Weekly PDF report',monthly:'Monthly PDF report',csv:'CSV export'};
+  showToast(`${labels[type]} generated ✓`);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+buildForm();
+// Pre-seed some demo feedback
+setTimeout(()=>{
+  [
+    {mealTime:'lunch',meals:[{id:'dal_rice',name:'Dal Rice',rating:3,comment:'Too salty today'},{id:'sabji',name:'Sabji',rating:4,comment:''},{id:'roti',name:'Roti',rating:5,comment:''},{id:'salad',name:'Salad',rating:2,comment:'Not fresh'}]},
+    {mealTime:'lunch',meals:[{id:'dal_rice',name:'Dal Rice',rating:2,comment:'Very watery'},{id:'roti',name:'Roti',rating:5,comment:''},{id:'sweet',name:'Sweet',rating:5,comment:'Excellent gulab jamun!'}]},
+    {mealTime:'breakfast',meals:[{id:'poha',name:'Poha',rating:4,comment:'Good but a bit cold'},{id:'chai',name:'Chai',rating:3,comment:''}]},
+    {mealTime:'lunch',meals:[{id:'dal_rice',name:'Dal Rice',rating:4,comment:''},{id:'sabji',name:'Sabji',rating:3,comment:'Less spice please'},{id:'salad',name:'Salad',rating:2,comment:'Wilted vegetables'}]},
+  ].forEach((fb,i)=>{
+    const d = new Date(); d.setMinutes(d.getMinutes()-i*12);
+    allFeedback.push({...fb, time:d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})});
+  });
+},100);
+</script>
+</body>
+</html>

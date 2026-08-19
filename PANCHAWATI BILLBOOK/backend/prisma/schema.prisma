@@ -1,0 +1,263 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String   @unique
+  password_hash String
+  role          String   @default("Staff") // Admin or Staff
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  invoices       Invoice[]
+  purchase_bills PurchaseBill[]
+  stock_history  StockHistory[]
+  expenses       Expense[]
+}
+
+model Settings {
+  id             Int      @id @default(1)
+  company_name   String
+  logo_url       String?
+  gst_number     String?
+  address        String?
+  phone          String?
+  email          String?
+  invoice_prefix String   @default("INV-2026-")
+  footer_text    String?
+  terms          String?
+}
+
+model Customer {
+  id                  Int       @id @default(autoincrement())
+  name                String
+  mobile              String    @unique
+  email               String?
+  address             String?
+  gst_number          String?
+  credit_limit        Float     @default(0.00)
+  outstanding_balance Float     @default(0.00)
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
+  invoices            Invoice[]
+  payments            Payment[]
+}
+
+model Supplier {
+  id                  Int            @id @default(autoincrement())
+  name                String
+  mobile              String         @unique
+  email               String?
+  address             String?
+  gst_number          String?
+  outstanding_payable Float          @default(0.00)
+  created_at          DateTime       @default(now())
+  updated_at          DateTime       @updatedAt
+  purchase_bills      PurchaseBill[]
+  payments            Payment[]
+}
+
+model Category {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Location {
+  id            Int            @id @default(autoincrement())
+  name          String         @unique
+  type          String         @default("Main Shop")
+  inventory     Inventory[]
+  stock_history StockHistory[]
+}
+
+model Product {
+  id                    Int            @id @default(autoincrement())
+  name                  String
+  code                  String         @unique
+  sku                   String?        @unique
+  barcode               String?        @unique
+  brand                 String?
+  oem_number            String?
+  vehicle_compatibility String?
+  sub_category          String?
+  category_id           Int
+  category              Category       @relation(fields: [category_id], references: [id])
+  description           String?
+  purchase_price        Float
+  selling_price         Float
+  gst_rate              Float          @default(0.00)
+  hsn_code              String?
+  secondary_unit        String?
+  is_batched            Boolean        @default(false)
+  min_stock             Int            @default(5)
+  unit                  String         @default("pcs")
+  image_url             String?
+  created_at            DateTime       @default(now())
+  updated_at            DateTime       @updatedAt
+  inventory             Inventory[]
+  invoice_items         InvoiceItem[]
+  purchase_items        PurchaseItem[]
+  stock_history         StockHistory[]
+}
+
+model Inventory {
+  id           Int      @id @default(autoincrement())
+  product_id   Int
+  location_id  Int
+  quantity     Int      @default(0)
+  last_updated DateTime @default(now()) @updatedAt
+
+  product  Product  @relation(fields: [product_id], references: [id])
+  location Location @relation(fields: [location_id], references: [id])
+
+  @@unique([product_id, location_id])
+}
+
+model StockHistory {
+  id             Int      @id @default(autoincrement())
+  product_id     Int
+  location_id    Int
+  action         String // "Added", "Sold", "Returned", "Damaged", "Adjusted"
+  quantity       Int
+  previous_qty   Int
+  new_qty        Int
+  user_id        Int
+  reference_type String? // "Invoice", "PurchaseBill", "Adjustment", "Mobile Scan"
+  reference_id   Int?
+  device_type    String? // e.g. "Mobile Browser - iPhone"
+  geo_location   String? // e.g. "Lat: 28.6139, Long: 77.2090"
+  date           DateTime @default(now())
+
+  product  Product  @relation(fields: [product_id], references: [id])
+  location Location @relation(fields: [location_id], references: [id])
+  user     User     @relation(fields: [user_id], references: [id])
+}
+
+model Invoice {
+  id             Int           @id @default(autoincrement())
+  invoice_number String        @unique
+  customer_id    Int
+  customer       Customer      @relation(fields: [customer_id], references: [id])
+  date           DateTime      @default(now())
+  total_items    Int
+  total_qty      Int
+  subtotal       Float
+  discount       Float         @default(0.00)
+  gst_amount     Float         @default(0.00)
+  grand_total    Float
+  paid_amount    Float         @default(0.00)
+  due_amount     Float         @default(0.00)
+  payment_method String        @default("Cash") // Cash, UPI, Card, Bank Transfer, Credit
+  status         String        @default("Paid") // Paid, Partial, Unpaid
+  cancelled      Boolean       @default(false)
+  cancelled_at   DateTime?
+  cancel_reason  String?
+  user_id        Int
+  user           User          @relation(fields: [user_id], references: [id])
+  items          InvoiceItem[]
+  payments       Payment[]
+}
+
+model InvoiceItem {
+  id          Int     @id @default(autoincrement())
+  invoice_id  Int
+  invoice     Invoice @relation(fields: [invoice_id], references: [id])
+  product_id  Int?
+  product     Product? @relation(fields: [product_id], references: [id])
+  custom_name String?
+  quantity    Int
+  unit_price  Float
+  discount    Float   @default(0.00)
+  gst_amount  Float   @default(0.00)
+  line_total  Float
+}
+
+model PurchaseBill {
+  id             Int            @id @default(autoincrement())
+  supplier_id    Int
+  supplier       Supplier       @relation(fields: [supplier_id], references: [id])
+  invoice_number String         @unique
+  date           DateTime       @default(now())
+  total_amount   Float
+  user_id        Int
+  user           User           @relation(fields: [user_id], references: [id])
+  items          PurchaseItem[]
+  payments       Payment[]
+}
+
+model PurchaseItem {
+  id               Int          @id @default(autoincrement())
+  purchase_bill_id Int
+  purchase_bill    PurchaseBill @relation(fields: [purchase_bill_id], references: [id])
+  product_id       Int
+  product          Product      @relation(fields: [product_id], references: [id])
+  quantity         Int
+  purchase_price   Float
+  line_total       Float
+}
+
+model Notification {
+  id          Int      @id @default(autoincrement())
+  type        String // "Low Stock", "Bill Created", "Payment Due"
+  message     String
+  read_status Boolean  @default(false)
+  created_at  DateTime @default(now())
+}
+
+model Payment {
+  id               Int           @id @default(autoincrement())
+  date             DateTime      @default(now())
+  amount           Float
+  payment_mode     String        @default("Cash") // Cash, UPI, Bank Transfer
+  reference_number String?
+  remarks          String?
+  type             String        // "Receive" or "Pay"
+  
+  // Relations
+  customer_id      Int?
+  customer         Customer?     @relation(fields: [customer_id], references: [id])
+  
+  supplier_id      Int?
+  supplier         Supplier?     @relation(fields: [supplier_id], references: [id])
+  
+  invoice_id       Int?
+  invoice          Invoice?      @relation(fields: [invoice_id], references: [id])
+  
+  purchase_bill_id Int?
+  purchase_bill    PurchaseBill? @relation(fields: [purchase_bill_id], references: [id])
+}
+
+model VehicleServiceHistory {
+  id             Int      @id @default(autoincrement())
+  vehicle_number String
+  customer_name  String
+  mobile         String?
+  service_date   DateTime @default(now())
+  parts_used     String?  // JSON or text description
+  labour_charges Float    @default(0.00)
+  total_amount   Float    @default(0.00)
+  mechanic_name  String?
+  remarks        String?
+  created_at     DateTime @default(now())
+}
+
+model Expense {
+  id           Int      @id @default(autoincrement())
+  date         DateTime @default(now())
+  category     String   // e.g., "Rent", "Electricity", "Salaries", "Tea/Snacks", "Other"
+  amount       Float
+  payment_mode String   @default("Cash") // Cash, UPI, Bank Transfer
+  remarks      String?
+  user_id      Int
+  user         User     @relation(fields: [user_id], references: [id])
+  created_at   DateTime @default(now())
+}

@@ -1,0 +1,1495 @@
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import axios from 'axios';
+import { Users, CheckCircle, XCircle, Star, QrCode, TrendingUp, TrendingDown, Trash2, Edit, Save, Download, AlertTriangle, Calendar, Cloud, Sun, CloudRain, Megaphone, Settings, Camera, X, UserCog } from 'lucide-react';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useSocket } from '../components/SocketContext';
+import { Scanner } from '@yudiel/react-qr-scanner';
+
+const api = axios.create();
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  const simD = localStorage.getItem('sandbox_enabled') === 'true' ? (localStorage.getItem('sim_date') || new Date().toISOString().split('T')[0]) : null;
+  if (simD) config.headers['x-simulated-date'] = simD;
+  return config;
+});
+
+const getToday = () => {
+  if (localStorage.getItem('sandbox_enabled') === 'true') {
+    return localStorage.getItem('sim_date') || new Date().toISOString().split('T')[0];
+  }
+  return new Date().toISOString().split('T')[0];
+};
+
+const Card = ({ children, className = '', ...props }) => (
+  <div className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg ${className}`} {...props}>
+    {children}
+  </div>
+);
+
+// ─── DASHBOARD OVERVIEW ────────────────────────────────────────────────────────
+const DashboardOverview = () => {
+  const [attendanceStats, setAttendanceStats] = useState(null);
+  const [studentsList, setStudentsList] = useState([]);
+  const [feedbackStats, setFeedbackStats] = useState(null);
+  const [wasteData, setWasteData] = useState([]);
+  const [complaints, setComplaints] = useState([]);
+  
+  const [modalType, setModalType] = useState(null); // 'total', 'present', 'absent'
+  const [replyModal, setReplyModal] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  
+  const fetchDashboardData = React.useCallback(() => {
+    const today = getToday();
+    api.get(`/api/attendance/live?date=${today}`).then(r => setAttendanceStats(r.data)).catch(() => {});
+    api.get(`/api/attendance/students-list?date=${today}`).then(r => setStudentsList(r.data.data)).catch(() => {});
+    api.get('/api/feedback/stats').then(r => setFeedbackStats(r.data)).catch(() => {});
+    api.get('/api/waste').then(r => setWasteData(r.data.data.records.slice(0, 7))).catch(() => {});
+    api.get('/api/complaints/all').then(r => setComplaints(r.data.data.slice(0, 10))).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('attendance_updated', fetchDashboardData);
+      socket.on('complaint_new', fetchDashboardData);
+      socket.on('feedback_new', fetchDashboardData);
+    }
+    return () => {
+      if (socket) {
+        socket.off('feedback_new', fetchDashboardData);
+        socket.off('complaint_new', fetchDashboardData);
+        socket.off('attendance_updated', fetchDashboardData);
+      }
+    };
+  }, [socket, fetchDashboardData]);
+
+  const handleUpdateComplaint = async (e) => {
+    e.preventDefault();
+    if (!replyModal) return;
+    try {
+      await api.patch(`/api/complaints/${replyModal._id}`, {
+        status: replyModal.newStatus || 'Resolved',
+        managerReply: replyText
+      });
+      setReplyModal(null);
+      setReplyText('');
+      fetchDashboardData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error updating complaint. Please check your connection.');
+      console.error(err);
+    }
+  };
+
+  const getFilteredStudents = () => {
+    return studentsList; // All students
+  };
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-extrabold text-slate-800 dark:text-white">Mess Overview</h2>
+      
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        <Card className="p-5 border-l-4 border-l-blue-500 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" onClick={() => setModalType('total')}>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase">Total Students</p>
+          <p className="text-2xl font-extrabold mt-1 text-slate-800 dark:text-white">{attendanceStats?.totalStudents || 0}</p>
+        </Card>
+        
+        <Card className="p-4 border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" onClick={() => setModalType('total')}>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase">Breakfast</p>
+          <div className="flex gap-4 mt-2">
+            <div><span className="text-xl font-extrabold text-emerald-500">{attendanceStats?.stats?.breakfast?.present || 0}</span> <span className="text-[9px] font-bold text-slate-400">P</span></div>
+            <div><span className="text-xl font-extrabold text-red-500">{attendanceStats?.stats?.breakfast?.absent || 0}</span> <span className="text-[9px] font-bold text-slate-400">A</span></div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" onClick={() => setModalType('total')}>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase">Lunch</p>
+          <div className="flex gap-4 mt-2">
+            <div><span className="text-xl font-extrabold text-emerald-500">{attendanceStats?.stats?.lunch?.present || 0}</span> <span className="text-[9px] font-bold text-slate-400">P</span></div>
+            <div><span className="text-xl font-extrabold text-red-500">{attendanceStats?.stats?.lunch?.absent || 0}</span> <span className="text-[9px] font-bold text-slate-400">A</span></div>
+          </div>
+        </Card>
+
+        <Card className="p-4 border-l-4 border-l-emerald-500 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors" onClick={() => setModalType('total')}>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase">Dinner</p>
+          <div className="flex gap-4 mt-2">
+            <div><span className="text-xl font-extrabold text-emerald-500">{attendanceStats?.stats?.dinner?.present || 0}</span> <span className="text-[9px] font-bold text-slate-400">P</span></div>
+            <div><span className="text-xl font-extrabold text-red-500">{attendanceStats?.stats?.dinner?.absent || 0}</span> <span className="text-[9px] font-bold text-slate-400">A</span></div>
+          </div>
+        </Card>
+
+        <Card className="p-5 border-l-4 border-l-amber-500">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase">Average Rating</p>
+          <p className="text-2xl font-extrabold mt-1 text-amber-500 flex items-center gap-1">
+            {feedbackStats?.averageRating || '0.0'} <Star size={18} className="fill-amber-500" />
+          </p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="p-6 h-[300px]">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Recent Waste Trends (kg)</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={wasteData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
+              <XAxis dataKey="date" tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', {weekday: 'short'})} stroke="#94a3b8" fontSize={10} />
+              <YAxis stroke="#94a3b8" fontSize={10} />
+              <Tooltip cursor={{fill: 'transparent'}} contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px'}} />
+              <Bar dataKey="wasteWeight" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Recent Feedback</h3>
+          <div className="space-y-3 overflow-y-auto max-h-[220px] pr-2">
+            {feedbackStats?.feedbacks?.map((f, i) => (
+              <div key={i} className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 text-xs">
+                <div className="flex justify-between mb-1">
+                  <span className="font-bold text-slate-700 dark:text-slate-300">{f.student?.name || 'Student'} ({f.mealType})</span>
+                  <span className="flex gap-0.5 text-amber-500">{[...Array(f.rating)].map((_,j)=><Star key={j} size={10} className="fill-amber-500"/>)}</span>
+                </div>
+                <p className="text-slate-500">{f.comments}</p>
+              </div>
+            )) || <p className="text-xs text-slate-400">No recent feedback.</p>}
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Recent Complaints</h3>
+            <a href="/manager/complaints" className="text-[10px] text-amber-500 hover:underline font-bold">View All</a>
+          </div>
+          <div className="space-y-3 overflow-y-auto max-h-[220px] pr-2">
+            {complaints.length > 0 ? complaints.map((c, i) => (
+              <div 
+                key={i} 
+                onClick={() => { if (c.status === 'Pending') { setReplyModal({...c, newStatus: 'Resolved'}); setReplyText(''); } }}
+                className={`p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800 text-xs transition-colors ${c.status === 'Pending' ? 'cursor-pointer hover:border-amber-400 dark:hover:border-amber-500/50 hover:shadow-md' : 'opacity-70'}`}
+              >
+                <div className="flex justify-between items-center mb-1">
+                  <span className="font-bold text-slate-700 dark:text-slate-300">{c.title}</span>
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${c.status === 'Resolved' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{c.status}</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mb-1">{c.student?.name || 'Student'} - {c.category}</p>
+                <p className="text-slate-500 line-clamp-2">{c.description}</p>
+                {c.status === 'Pending' && <p className="text-[9px] text-amber-500 font-bold mt-2 flex items-center gap-1"><Edit size={10}/> Click to reply</p>}
+              </div>
+            )) : <p className="text-xs text-slate-400">No recent complaints.</p>}
+          </div>
+        </Card>
+      </div>
+
+      {modalType && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-2xl w-full p-6 border-slate-700 max-h-[80vh] flex flex-col">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white capitalize">Students Attendance List</h2>
+              <button onClick={() => setModalType(null)} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 pr-2">
+              <table className="w-full text-xs text-left">
+                <thead className="sticky top-0 bg-white dark:bg-slate-800">
+                  <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                    <th className="pb-3 pl-2">Name / Roll</th>
+                    <th className="pb-3 text-center">Breakfast</th>
+                    <th className="pb-3 text-center">Lunch</th>
+                    <th className="pb-3 text-center">Dinner</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {getFilteredStudents().length > 0 ? getFilteredStudents().map((s, i) => (
+                    <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                      <td className="py-3 pl-2"><p className="font-bold text-slate-800 dark:text-white">{s.name}</p><p className="text-[10px] text-slate-400">{s.rollNumber}</p></td>
+                      <td className="py-3 text-center"><span className={`px-2 py-1 rounded-full text-[9px] font-bold ${s.attendance?.breakfast === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{s.attendance?.breakfast || 'Present'}</span></td>
+                      <td className="py-3 text-center"><span className={`px-2 py-1 rounded-full text-[9px] font-bold ${s.attendance?.lunch === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{s.attendance?.lunch || 'Present'}</span></td>
+                      <td className="py-3 text-center"><span className={`px-2 py-1 rounded-full text-[9px] font-bold ${s.attendance?.dinner === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{s.attendance?.dinner || 'Present'}</span></td>
+                    </tr>
+                  )) : (
+                    <tr><td colSpan="4" className="py-4 text-center text-slate-400">No students found.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Reply Modal */}
+      {replyModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full p-6 border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">Reply to Complaint</h2>
+              <button onClick={() => setReplyModal(null)} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="mb-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg text-xs">
+              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">{replyModal.title}</p>
+              <p className="text-slate-500">{replyModal.description}</p>
+            </div>
+            <form onSubmit={handleUpdateComplaint} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Status</label>
+                <select value={replyModal.newStatus} onChange={e=>setReplyModal({...replyModal, newStatus: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs mb-3">
+                  <option value="Resolved">Mark as Resolved</option>
+                  <option value="Pending">Keep Pending (Reply only)</option>
+                </select>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Your Reply Message</label>
+                <textarea required rows="4" value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Type your response to the student..." className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20">
+                Send Reply & Update Status
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── LIVE ATTENDANCE & QR SCANNER ──────────────────────────────────────────────
+const LiveAttendance = () => {
+  const [stats, setStats] = useState(null);
+  const [students, setStudents] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [qrRoll, setQrRoll] = useState('');
+  const [qrMeal, setQrMeal] = useState('Lunch');
+  const [scanMsg, setScanMsg] = useState(null);
+  
+  const [selectedDate, setSelectedDate] = useState(getToday());
+  const [addStudentModal, setAddStudentModal] = useState(false);
+  const [editDatesModal, setEditDatesModal] = useState({ isOpen: false, student: null, start: '', end: '' });
+  const [newStudent, setNewStudent] = useState({ name: '', email: '', rollNumber: '', password: '', roomNumber: '', contact: '' });
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const sRes = await api.get(`/api/attendance/live?date=${selectedDate}`);
+      setStats(sRes.data.stats);
+      const lRes = await api.get(`/api/attendance/students-list?date=${selectedDate}`);
+      setStudents(lRes.data.data);
+      const qRes = await api.get(`/api/attendance/logs?date=${selectedDate}`);
+      setLogs(qRes.data.data);
+    } catch {}
+  };
+
+  const [historyModal, setHistoryModal] = useState({ isOpen: false, student: null, month: getToday().substring(0, 7), data: null, stats: null });
+
+  useEffect(() => { fetchData(); }, [selectedDate]);
+
+  const fetchHistory = async (studentId, month) => {
+    try {
+      const res = await api.get(`/api/attendance/student/${studentId}/monthly?month=${month}`);
+      setHistoryModal(prev => ({ ...prev, data: res.data.data, stats: res.data.stats }));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const openHistory = (student) => {
+    const defaultMonth = getToday().substring(0, 7);
+    setHistoryModal({ isOpen: true, student, month: defaultMonth, data: null, stats: null });
+    fetchHistory(student._id || student.id, defaultMonth);
+  };
+
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (socket) {
+      socket.on('attendance_updated', () => {
+        fetchData();
+      });
+    }
+    return () => {
+      if (socket) socket.off('attendance_updated');
+    };
+  }, [socket, selectedDate]);
+
+  const [showScanner, setShowScanner] = useState(false);
+  const [cameraError, setCameraError] = useState('');
+
+  const handleScan = async (scannedRoll) => {
+    if (!scannedRoll) return;
+    try {
+      const res = await api.patch('/api/attendance/scan', { rollNumber: scannedRoll, mealType: qrMeal, date: selectedDate });
+      setScanMsg({ type: res.data.data?.correctedFromAbsent || res.data.corrected ? 'warning' : 'success', text: res.data.message });
+      setQrRoll(''); // Clear manual input if any
+      fetchData();
+    } catch (err) {
+      setScanMsg({ type: 'error', text: err.response?.data?.message || 'Scan failed' });
+    }
+  };
+
+  const handleOverride = async (studentId, mealType, currentStatus) => {
+    const newStatus = currentStatus === 'Present' ? 'Absent' : 'Present';
+    try {
+      await api.put('/api/attendance/override', {
+        studentId,
+        date: selectedDate,
+        mealType,
+        status: newStatus
+      });
+      fetchData();
+    } catch (err) {
+      alert('Failed to override attendance');
+    }
+  };
+
+  const handleEditDatesClick = (student) => {
+    setEditDatesModal({
+      isOpen: true,
+      student,
+      start: student.subscriptionStart ? student.subscriptionStart.split('T')[0] : '',
+      end: student.subscriptionEnd ? student.subscriptionEnd.split('T')[0] : ''
+    });
+  };
+
+  const handleUpdateDates = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/api/managers/students/${editDatesModal.student._id || editDatesModal.student.id}/subscription`, { 
+        subscriptionStart: editDatesModal.start, 
+        subscriptionEnd: editDatesModal.end 
+      });
+      setEditDatesModal({ isOpen: false, student: null, start: '', end: '' });
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update dates');
+    }
+  };
+
+  const handleAddStudent = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post('/api/managers/students', newStudent);
+      setAddStudentModal(false);
+      setNewStudent({ name: '', email: '', rollNumber: '', password: '', roomNumber: '', contact: '' });
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to add student');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to completely remove ${name} from this hostel? This action cannot be undone.`)) return;
+    try {
+      await api.delete(`/api/managers/students/${id}`);
+      fetchData();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to remove student');
+    }
+  };
+
+  const MealStat = ({ label, data }) => (
+    <div className="flex-1 bg-slate-50 dark:bg-slate-900 rounded-xl p-4 border border-slate-100 dark:border-slate-800 text-center">
+      <p className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">{label}</p>
+      <div className="flex justify-center gap-4">
+        <div><p className="text-lg font-extrabold text-emerald-500">{data?.present || 0}</p><p className="text-[9px] text-slate-400 uppercase">Present</p></div>
+        <div><p className="text-lg font-extrabold text-red-500">{data?.absent || 0}</p><p className="text-[9px] text-slate-400 uppercase">Absent</p></div>
+        <div><p className="text-lg font-extrabold text-amber-500">{data?.corrected || 0}</p><p className="text-[9px] text-slate-400 uppercase">Corrected</p></div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="lg:col-span-2 p-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 flex items-center gap-2">
+              <Users size={16} className="text-amber-500" /> Live Meal Stats
+            </h3>
+            <input 
+              type="date" 
+              value={selectedDate} 
+              onChange={e => setSelectedDate(e.target.value)}
+              className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-white"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <MealStat label="Breakfast" data={stats?.breakfast} />
+            <MealStat label="Lunch" data={stats?.lunch} />
+            <MealStat label="Dinner" data={stats?.dinner} />
+          </div>
+        </Card>
+
+        <Card className="p-6">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+            <Camera size={16} className="text-amber-500" /> QR Code Scanner
+          </h3>
+          <div className="space-y-4">
+            <select value={qrMeal} onChange={e=>setQrMeal(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs">
+              <option>Breakfast</option><option>Lunch</option><option>Dinner</option>
+            </select>
+            
+            {!showScanner ? (
+              <div className="space-y-3">
+                <button onClick={() => { setShowScanner(true); setCameraError(''); }} className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg shadow-amber-500/20 flex justify-center items-center gap-2">
+                  <Camera size={14} /> Open Mobile Camera
+                </button>
+                <div className="flex items-center gap-2">
+                  <input type="text" value={qrRoll} onChange={e=>setQrRoll(e.target.value)} placeholder="Or manual roll number" className="flex-1 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+                  <button onClick={() => handleScan(qrRoll)} className="py-2 px-4 bg-slate-800 text-white font-bold rounded-xl text-xs hover:bg-slate-700">Submit</button>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-slate-900 rounded-xl overflow-hidden relative">
+                <Scanner 
+                  onScan={(detectedCodes) => {
+                    if (detectedCodes && detectedCodes.length > 0) {
+                      handleScan(detectedCodes[0].rawValue);
+                    }
+                  }} 
+                  onError={(error) => {
+                    console.error(error);
+                    setCameraError(error?.message || 'Failed to open camera');
+                  }}
+                  allowMultiple={false}
+                />
+                <button onClick={() => setShowScanner(false)} className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/80 text-white rounded-lg z-10">
+                  <X size={16} />
+                </button>
+              </div>
+            )}
+            
+            {cameraError && (
+              <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-xs">
+                {cameraError}. Are you using https:// ?
+              </div>
+            )}
+            
+            {scanMsg && (
+              <p className={`text-[11px] font-bold p-2 rounded-lg text-center ${scanMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : scanMsg.type === 'warning' ? 'bg-amber-500/10 text-amber-500' : 'bg-red-500/10 text-red-500'}`}>
+                {scanMsg.text}
+              </p>
+            )}
+          </div>
+        </Card>
+      </div>
+
+      <Card className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Student Attendance List</h3>
+          <button onClick={() => setAddStudentModal(true)} className="py-1.5 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] transition-all flex items-center gap-1 shadow-lg shadow-amber-500/20">
+            + Add Student
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                <th className="pb-3 pl-2">Name / Roll</th>
+                <th className="pb-3">Room</th>
+                <th className="pb-3">Join Date</th>
+                <th className="pb-3">End Date</th>
+                <th className="pb-3">Breakfast</th>
+                <th className="pb-3">Lunch</th>
+                <th className="pb-3">Dinner</th>
+                <th className="pb-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {students.map((s, i) => (
+                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="py-3 pl-2"><p className="font-bold text-slate-800 dark:text-white">{s.name}</p><p className="text-[10px] text-slate-400">{s.rollNumber}</p></td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400">{s.roomNumber}</td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400 text-[10px]">{s.subscriptionStart ? new Date(s.subscriptionStart).toLocaleDateString() : 'N/A'}</td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400 text-[10px]">{s.subscriptionEnd ? new Date(s.subscriptionEnd).toLocaleDateString() : 'N/A'}</td>
+                  <td className="py-3">
+                    <button 
+                      onClick={() => handleOverride(s._id || s.id, 'Breakfast', s.attendance?.breakfast || 'Present')}
+                      className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all hover:opacity-80 ${(s.attendance?.breakfast || 'Present') === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                      {s.attendance?.breakfast || 'Present'}
+                    </button>
+                  </td>
+                  <td className="py-3">
+                    <button 
+                      onClick={() => handleOverride(s._id || s.id, 'Lunch', s.attendance?.lunch || 'Present')}
+                      className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all hover:opacity-80 ${(s.attendance?.lunch || 'Present') === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                      {s.attendance?.lunch || 'Present'}
+                    </button>
+                  </td>
+                  <td className="py-3">
+                    <button 
+                      onClick={() => handleOverride(s._id || s.id, 'Dinner', s.attendance?.dinner || 'Present')}
+                      className={`px-2 py-1 rounded-full text-[9px] font-bold transition-all hover:opacity-80 ${(s.attendance?.dinner || 'Present') === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                      {s.attendance?.dinner || 'Present'}
+                    </button>
+                  </td>
+                  <td className="py-3 pr-2 text-right whitespace-nowrap">
+                    <button onClick={() => openHistory(s)} className="text-slate-400 hover:text-indigo-500 transition-colors p-1" title="View Monthly History">
+                      <Calendar size={14} />
+                    </button>
+                    <button onClick={() => handleEditDatesClick(s)} className="text-slate-400 hover:text-amber-500 transition-colors p-1" title="Edit Subscription Dates">
+                      <Edit size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteStudent(s._id || s.id, s.name)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Remove Student">
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Add Student Modal */}
+      {addStudentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full p-6 border-slate-700">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">Add New Student</h2>
+              <button onClick={() => setAddStudentModal(false)} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAddStudent} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Full Name</label>
+                <input type="text" required value={newStudent.name} onChange={e=>setNewStudent({...newStudent, name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Roll Number</label>
+                  <input type="text" required value={newStudent.rollNumber} onChange={e=>setNewStudent({...newStudent, rollNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Room Number</label>
+                  <input type="text" required value={newStudent.roomNumber} onChange={e=>setNewStudent({...newStudent, roomNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Email</label>
+                <input type="email" required value={newStudent.email} onChange={e=>setNewStudent({...newStudent, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Contact Number</label>
+                <input type="text" required value={newStudent.contact} onChange={e=>setNewStudent({...newStudent, contact: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Password</label>
+                <input type="password" required minLength={6} value={newStudent.password} onChange={e=>setNewStudent({...newStudent, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <button type="submit" disabled={loading} className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all mt-6 disabled:opacity-50">
+                {loading ? 'Adding...' : 'Add Student'}
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Dates Modal */}
+      {editDatesModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full p-6 border-slate-700">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">Edit Subscription Dates</h2>
+              <button onClick={() => setEditDatesModal({ isOpen: false, student: null, start: '', end: '' })} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">Editing dates for <span className="font-bold text-slate-800 dark:text-white">{editDatesModal.student?.name}</span></p>
+            <form onSubmit={handleUpdateDates} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Mess Join Date</label>
+                <input type="date" required value={editDatesModal.start} onChange={e=>setEditDatesModal({...editDatesModal, start: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:ring-amber-500 focus:border-amber-500" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Mess End Date</label>
+                <input type="date" required value={editDatesModal.end} onChange={e=>setEditDatesModal({...editDatesModal, end: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:ring-amber-500 focus:border-amber-500" />
+              </div>
+              <button type="submit" className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all mt-6">
+                Update Dates
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {historyModal.isOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-3xl w-full max-h-[90vh] flex flex-col p-6 border-slate-700">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h2 className="text-lg font-bold text-slate-800 dark:text-white">Attendance History</h2>
+                <p className="text-xs text-slate-500">{historyModal.student?.name} ({historyModal.student?.rollNumber})</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <input 
+                  type="month" 
+                  value={historyModal.month}
+                  onChange={(e) => {
+                    setHistoryModal(prev => ({ ...prev, month: e.target.value }));
+                    fetchHistory(historyModal.student._id || historyModal.student.id, e.target.value);
+                  }}
+                  className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-white"
+                />
+                <button onClick={() => setHistoryModal({ isOpen: false, student: null, month: '', data: null, stats: null })} className="text-slate-400 hover:text-white">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {historyModal.stats && (
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                {['breakfast', 'lunch', 'dinner'].map(meal => (
+                  <div key={meal} className="bg-slate-50 dark:bg-slate-900 rounded-xl p-3 border border-slate-100 dark:border-slate-800 text-center">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase mb-2">{meal}</p>
+                    <div className="flex justify-between px-2 text-xs">
+                      <div><span className="font-extrabold text-emerald-500 block">{historyModal.stats[meal].present}</span><span className="text-[9px] text-slate-400">Present</span></div>
+                      <div><span className="font-extrabold text-red-500 block">{historyModal.stats[meal].absent}</span><span className="text-[9px] text-slate-400">Absent</span></div>
+                      <div><span className="font-extrabold text-amber-500 block">{historyModal.stats[meal].leave}</span><span className="text-[9px] text-slate-400">Leave</span></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex-1 overflow-y-auto min-h-[200px]">
+              {!historyModal.data ? (
+                <p className="text-center text-slate-500 py-10 text-xs">Loading data...</p>
+              ) : historyModal.data.length === 0 ? (
+                <p className="text-center text-slate-500 py-10 text-xs">No records found for this month.</p>
+              ) : (
+                <table className="w-full text-xs text-left">
+                  <thead className="sticky top-0 bg-white dark:bg-slate-950">
+                    <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                      <th className="py-3">Date</th>
+                      <th className="py-3">Breakfast</th>
+                      <th className="py-3">Lunch</th>
+                      <th className="py-3">Dinner</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                    {historyModal.data.map((r, i) => (
+                      <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                        <td className="py-2 text-slate-700 dark:text-slate-300 font-mono">{r.date}</td>
+                        <td className="py-2"><span className={`px-2 py-1 rounded-full text-[9px] font-bold ${r.breakfast === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{r.breakfast}</span></td>
+                        <td className="py-2"><span className={`px-2 py-1 rounded-full text-[9px] font-bold ${r.lunch === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{r.lunch}</span></td>
+                        <td className="py-2"><span className={`px-2 py-1 rounded-full text-[9px] font-bold ${r.dinner === 'Present' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{r.dinner}</span></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── AI FORECASTING ────────────────────────────────────────────────────────────
+const Forecasting = () => {
+  const [date, setDate] = useState(getToday());
+  const [isExam, setIsExam] = useState(false);
+  const [isHoliday, setIsHoliday] = useState(false);
+  const [weather, setWeather] = useState('Normal');
+  const [dailyForecast, setDailyForecast] = useState(null);
+  const [weeklyData, setWeeklyData] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const rDaily = await api.get(`/api/forecasting/daily?date=${date}&isExamSeason=${isExam}&weather=${weather}&isHoliday=${isHoliday}`);
+      setDailyForecast(rDaily.data.data);
+      
+      const rWeekly = await api.get('/api/forecasting/weekly');
+      setWeeklyData(rWeekly.data.data.reverse()); // Chronological order
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [date, isExam, isHoliday, weather]);
+
+  const MealForecastCard = ({ title, meal }) => {
+    if (!meal) return null;
+    return (
+      <div className={`p-5 rounded-2xl border ${meal.isLocked ? 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800' : 'bg-white dark:bg-slate-800 border-amber-500/30'} shadow-sm relative overflow-hidden`}>
+        {meal.isLocked && <div className="absolute top-0 right-0 bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 text-[9px] font-bold px-2 py-1 rounded-bl-lg">LOCKED</div>}
+        <h4 className="text-sm font-bold text-slate-800 dark:text-white mb-1">{title}</h4>
+        <p className="text-[10px] font-semibold text-amber-500 mb-4">{meal.lockMessage}</p>
+        
+        <div className="flex justify-between items-end mb-4">
+          <div>
+            <p className="text-[10px] text-slate-500 uppercase font-bold">Predicted</p>
+            <p className="text-3xl font-extrabold text-slate-800 dark:text-white">{meal.predictedAttendance}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-slate-500 uppercase font-bold">Absent</p>
+            <p className="text-xl font-bold text-red-500">{meal.absentMarked}</p>
+          </div>
+        </div>
+
+        <div className="space-y-2 mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/50">
+          {meal.suggestedRoti > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-500">Roti</span>
+              <span className="font-bold text-amber-600 dark:text-amber-500">{meal.suggestedRoti} pcs</span>
+            </div>
+          )}
+          {meal.suggestedRiceQty > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-500">Rice</span>
+              <span className="font-bold text-emerald-600 dark:text-emerald-500">{meal.suggestedRiceQty} kg</span>
+            </div>
+          )}
+          {meal.suggestedVegQty > 0 && (
+            <div className="flex justify-between text-xs">
+              <span className="text-slate-500">Vegetables</span>
+              <span className="font-bold text-blue-600 dark:text-blue-500">{meal.suggestedVegQty} kg</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-6 border-t-4 border-t-amber-500">
+        <div className="flex justify-between items-center mb-6">
+          <h3 className="text-lg font-bold text-slate-800 dark:text-white flex items-center gap-2">
+            <TrendingUp size={20} className="text-amber-500" /> AI Food Forecasting
+          </h3>
+          {loading && <div className="animate-spin rounded-full h-4 w-4 border-2 border-amber-500 border-t-transparent" />}
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl">
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Target Date</label>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-xs" />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Weather Condition</label>
+            <select value={weather} onChange={e=>setWeather(e.target.value)} className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg py-2 px-3 text-xs">
+              <option>Normal</option><option>Rainy</option><option>Hot</option>
+            </select>
+          </div>
+          <div className="col-span-2 flex items-center gap-6 px-4">
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={isExam} onChange={e=>setIsExam(e.target.checked)} className="rounded text-amber-500 focus:ring-amber-500" />
+              Exam Season (Reduces attendance)
+            </label>
+            <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 cursor-pointer">
+              <input type="checkbox" checked={isHoliday} onChange={e=>setIsHoliday(e.target.checked)} className="rounded text-amber-500 focus:ring-amber-500" />
+              Holiday (Major reduction)
+            </label>
+          </div>
+        </div>
+
+        {dailyForecast && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="flex justify-between items-center mb-4">
+              <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Daily Kitchen Preparation Guide</h4>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-full">Total Students: {dailyForecast.totalStudents}</span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <MealForecastCard title="Breakfast" meal={dailyForecast.meals.breakfast} />
+              <MealForecastCard title="Lunch" meal={dailyForecast.meals.lunch} />
+              <MealForecastCard title="Dinner" meal={dailyForecast.meals.dinner} />
+            </div>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+// ─── WASTE TRACKING ────────────────────────────────────────────────────────────
+const WasteTracking = () => {
+  const [date, setDate] = useState(getToday());
+  const [mealType, setMealType] = useState('Lunch');
+  const [weight, setWeight] = useState('');
+  const [items, setItems] = useState('');
+  const [data, setData] = useState(null);
+  
+  const fetchWaste = async () => {
+    try {
+      const r = await api.get('/api/waste');
+      setData(r.data.data);
+    } catch {}
+  };
+
+  useEffect(() => { fetchWaste(); }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post('/api/waste', { date, mealType, wasteWeight: Number(weight), itemsWasted: items.split(',').map(s=>s.trim()) });
+      setWeight(''); setItems('');
+      fetchWaste();
+    } catch {}
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <Card className="p-6 lg:col-span-1 h-fit">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+          <Trash2 size={16} className="text-amber-500" /> Log Food Waste
+        </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Date</label>
+            <input type="date" value={date} onChange={e=>setDate(e.target.value)} required className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Meal Type</label>
+            <select value={mealType} onChange={e=>setMealType(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs">
+              <option>Breakfast</option><option>Lunch</option><option>Dinner</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Waste Weight (kg)</label>
+            <input type="number" step="0.1" value={weight} onChange={e=>setWeight(e.target.value)} required placeholder="e.g. 15.5" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Items Wasted (comma separated)</label>
+            <input type="text" value={items} onChange={e=>setItems(e.target.value)} required placeholder="Rice, Dal" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+          </div>
+          <button type="submit" className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all">Save Record</button>
+        </form>
+      </Card>
+
+      <div className="lg:col-span-2 space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-5 border-l-4 border-l-amber-500">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase">Today's Total Waste</p>
+            <p className="text-3xl font-extrabold mt-1 text-slate-800 dark:text-white">{data?.todayTotal || 0} <span className="text-sm font-normal text-slate-400">kg</span></p>
+          </Card>
+          <Card className="p-5 border-l-4 border-l-red-500">
+            <p className="text-[11px] font-semibold text-slate-500 uppercase">Est. Lost Value (Today)</p>
+            <p className="text-3xl font-extrabold mt-1 text-red-500">₹{Math.round((data?.todayTotal || 0) * 85)}</p>
+            <p className="text-[9px] text-slate-400 mt-1">Based on avg ₹85/kg cost</p>
+          </Card>
+        </div>
+
+        <Card className="p-6 h-[300px]">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Weekly Waste Trend</h3>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data?.records?.slice(0, 14).reverse() || []}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.2} />
+              <XAxis dataKey="date" tickFormatter={(v) => new Date(v).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} stroke="#94a3b8" fontSize={10} />
+              <YAxis stroke="#94a3b8" fontSize={10} />
+              <Tooltip cursor={{stroke: '#334155', strokeWidth: 1}} contentStyle={{backgroundColor: '#1e293b', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '12px'}} />
+              <Line type="monotone" dataKey="wasteWeight" stroke="#f59e0b" strokeWidth={3} dot={{fill: '#f59e0b', r: 4}} activeDot={{r: 6}} />
+            </LineChart>
+          </ResponsiveContainer>
+        </Card>
+      </div>
+    </div>
+  );
+};
+
+// ─── MENU MANAGEMENT ───────────────────────────────────────────────────────────
+const MenuManagement = () => {
+  const [menu, setMenu] = useState([]);
+  const [editId, setEditId] = useState(null);
+  const [editForm, setEditForm] = useState({ breakfast: '', lunch: '', dinner: '' });
+
+  const fetchMenu = async () => {
+    try {
+      const r = await api.get('/api/menu');
+      setMenu(r.data.data);
+    } catch {}
+  };
+
+  useEffect(() => { fetchMenu(); }, []);
+
+  const handleEdit = (m) => {
+    setEditId(m._id);
+    setEditForm({ breakfast: m.breakfast, lunch: m.lunch, dinner: m.dinner });
+  };
+
+  const handleSave = async (id) => {
+    try {
+      await api.put(`/api/menu/${id}`, editForm);
+      setEditId(null);
+      fetchMenu();
+    } catch {}
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {menu.map((m, i) => (
+          <Card key={i} className="flex flex-col">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50 rounded-t-2xl">
+              <h3 className="font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Calendar size={14} className="text-amber-500" /> {m.day}
+              </h3>
+              {editId === m._id ? (
+                <button onClick={() => handleSave(m._id)} className="text-emerald-500 hover:bg-emerald-500/10 p-1.5 rounded-lg transition-colors"><Save size={14} /></button>
+              ) : (
+                <button onClick={() => handleEdit(m)} className="text-slate-400 hover:text-amber-500 hover:bg-amber-500/10 p-1.5 rounded-lg transition-colors"><Edit size={14} /></button>
+              )}
+            </div>
+            
+            <div className="p-4 flex-1 space-y-4">
+              {['breakfast', 'lunch', 'dinner'].map(meal => (
+                <div key={meal}>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">{meal}</p>
+                  {editId === m._id ? (
+                    <textarea value={editForm[meal]} onChange={e=>setEditForm({...editForm, [meal]: e.target.value})} rows={2} className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg py-1.5 px-2 text-[11px] resize-none focus:ring-amber-500 focus:border-amber-500" />
+                  ) : (
+                    <p className="text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800/50 min-h-[40px]">{m[meal]}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// ─── REPORTS & EXPORT ──────────────────────────────────────────────────────────
+const Reports = () => {
+  const [reportType, setReportType] = useState('attendance');
+  const [date, setDate] = useState(getToday());
+  const [loading, setLoading] = useState(false);
+
+  const handleDownload = async () => {
+    setLoading(true);
+    try {
+      const r = await api.get(`/api/reports/export?reportType=${reportType}&date=${date}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `foodback_${reportType}_report_${date}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch {} finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="p-6 max-w-2xl">
+      <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
+        <Download size={20} className="text-amber-500" /> Export Data to CSV
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <div>
+          <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Report Type</label>
+          <select value={reportType} onChange={e=>setReportType(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 text-sm">
+            <option value="attendance">Daily Attendance Report</option>
+            <option value="feedback">Meal Feedback Report</option>
+            <option value="waste">Waste Tracking Report</option>
+          </select>
+        </div>
+        <div>
+          <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Target Date</label>
+          <input type="date" value={date} onChange={e=>setDate(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 text-sm" />
+        </div>
+      </div>
+      <button onClick={handleDownload} disabled={loading} className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2">
+        <Download size={16} /> {loading ? 'Generating CSV...' : 'Download CSV File'}
+      </button>
+    </Card>
+  );
+};
+
+// ─── COMPLAINTS MANAGEMENT ─────────────────────────────────────────────────────────
+const ComplaintsManagement = () => {
+  const [complaints, setComplaints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [replyModal, setReplyModal] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [filter, setFilter] = useState('All');
+  const { socket } = useSocket();
+
+  const fetchComplaints = async () => {
+    try {
+      const res = await api.get('/api/complaints/all');
+      setComplaints(res.data.data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchComplaints();
+
+    if (socket) {
+      socket.on('complaint_new', () => fetchComplaints());
+      socket.on('complaint_updated', () => fetchComplaints());
+      return () => {
+        socket.off('complaint_new');
+        socket.off('complaint_updated');
+      };
+    }
+  }, [socket]);
+
+  const handleUpdateComplaint = async (e) => {
+    e.preventDefault();
+    if (!replyModal) return;
+    try {
+      await api.patch(`/api/complaints/${replyModal._id}`, {
+        status: 'Resolved',
+        managerReply: replyText
+      });
+      setReplyModal(null);
+      setReplyText('');
+      fetchComplaints();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error updating complaint. Please check your connection.');
+      console.error(err);
+    }
+  };
+
+  const filteredComplaints = complaints.filter(c => filter === 'All' ? true : c.status === filter);
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700/50">
+        <div>
+          <h2 className="text-2xl font-extrabold text-slate-800 dark:text-white flex items-center gap-2">
+            <AlertTriangle className="text-amber-500" /> Student Complaints
+          </h2>
+          <p className="text-sm text-slate-500 font-medium mt-1">Review, reply, and resolve issues.</p>
+        </div>
+        <div className="flex bg-slate-100 dark:bg-slate-900 rounded-xl p-1">
+          {['All', 'Pending', 'Resolved'].map(f => (
+            <button key={f} onClick={() => setFilter(f)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${filter === f ? 'bg-white dark:bg-slate-800 text-amber-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>
+              {f}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-10"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500 mx-auto"></div></div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredComplaints.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-slate-500">No {filter !== 'All' ? filter.toLowerCase() : ''} complaints found.</div>
+          ) : filteredComplaints.map(complaint => (
+            <Card key={complaint._id} className="p-5 flex flex-col hover:shadow-lg transition-all border-l-4" style={{borderLeftColor: complaint.status === 'Resolved' ? '#10b981' : '#f59e0b'}}>
+              <div className="flex justify-between items-start mb-3">
+                <span className={`px-2 py-1 rounded text-[10px] font-bold ${complaint.status === 'Resolved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'}`}>
+                  {complaint.status}
+                </span>
+                <span className="text-[10px] text-slate-400 font-semibold">{new Date(complaint.date).toLocaleDateString()}</span>
+              </div>
+              <h3 className="font-bold text-slate-800 dark:text-white text-sm mb-1">{complaint.title}</h3>
+              <p className="text-xs text-slate-500 line-clamp-2 mb-3 flex-1">{complaint.description}</p>
+              
+              <div className="bg-slate-50 dark:bg-slate-900/50 p-3 rounded-lg mb-4 text-xs">
+                <div className="flex items-center gap-2 mb-1"><UserCog size={12} className="text-slate-400"/> <span className="font-semibold text-slate-700 dark:text-slate-300">{complaint.student?.name}</span></div>
+                <div className="text-[10px] text-slate-500">Room: {complaint.student?.roomNumber} | Category: {complaint.category}</div>
+              </div>
+
+              {complaint.managerReply && (
+                <div className="mb-4 bg-emerald-50 dark:bg-emerald-900/10 p-3 rounded-lg border border-emerald-100 dark:border-emerald-800/30 relative">
+                  <div className="absolute -top-2 left-3 bg-white dark:bg-slate-800 px-1 text-[9px] font-bold text-emerald-600">Your Reply</div>
+                  <p className="text-xs text-slate-700 dark:text-slate-300">{complaint.managerReply}</p>
+                </div>
+              )}
+
+              {complaint.status === 'Pending' && (
+                <button onClick={() => { setReplyModal(complaint); setReplyText(''); }} className="w-full mt-auto py-2 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 text-amber-600 dark:text-amber-500 font-bold text-xs rounded-xl transition-colors">
+                  Reply & Resolve
+                </button>
+              )}
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Reply Modal */}
+      {replyModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full p-6 border-slate-700">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">Resolve Complaint</h2>
+              <button onClick={() => setReplyModal(null)} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <div className="mb-4 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg text-xs">
+              <p className="font-bold text-slate-700 dark:text-slate-300 mb-1">{replyModal.title}</p>
+              <p className="text-slate-500">{replyModal.description}</p>
+            </div>
+            <form onSubmit={handleUpdateComplaint} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Your Reply Message</label>
+                <textarea required rows="4" value={replyText} onChange={e=>setReplyText(e.target.value)} placeholder="Type your response to the student..." className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <button type="submit" className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-amber-500/20">
+                Send Reply & Mark Resolved
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── MANAGER ANNOUNCEMENTS ─────────────────────────────────────────────────────────────
+const ManagerAnnouncements = () => {
+  const [announcements, setAnnouncements] = useState([]);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { fetchAnnouncements(); }, []);
+
+  const fetchAnnouncements = async () => {
+    try {
+      const r = await api.get('/api/announcements');
+      setAnnouncements(r.data.data);
+    } catch {}
+  };
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post('/api/announcements', { title, message, targetAudience: 'All' });
+      setTitle(''); setMessage('');
+      fetchAnnouncements();
+    } catch {} finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`/api/announcements/${id}`);
+      fetchAnnouncements();
+    } catch {}
+  };
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <Card className="p-6 h-fit">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4 flex items-center gap-2">
+          <Megaphone size={16} className="text-amber-500" /> Create Announcement
+        </h3>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Title</label>
+            <input type="text" value={title} onChange={e=>setTitle(e.target.value)} required className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:ring-amber-500 focus:border-amber-500" />
+          </div>
+          <div>
+            <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Message</label>
+            <textarea value={message} onChange={e=>setMessage(e.target.value)} required rows={4} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs focus:ring-amber-500 focus:border-amber-500 resize-none" />
+          </div>
+          <button type="submit" disabled={loading} className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all flex justify-center items-center gap-2 shadow-lg shadow-amber-500/20">
+            <Megaphone size={14} /> Post Announcement
+          </button>
+        </form>
+      </Card>
+      
+      <Card className="p-6">
+        <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-4">Past Announcements</h3>
+        {announcements.length === 0 ? <p className="text-xs text-slate-400">No announcements found.</p> : (
+          <div className="space-y-3">
+            {announcements.map(a => (
+              <div key={a._id} className="p-4 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-100 dark:border-slate-800">
+                <div className="flex justify-between items-start">
+                  <h4 className="font-bold text-slate-800 dark:text-slate-200 text-sm">{a.title}</h4>
+                  <button onClick={() => handleDelete(a._id)} className="text-red-500 hover:text-red-600 p-1.5 transition-colors" title="Delete Announcement"><Trash2 size={14} /></button>
+                </div>
+                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">{a.message}</p>
+                <p className="text-[10px] font-semibold text-slate-400 mt-3 border-t border-slate-200 dark:border-slate-700 pt-2">{new Date(a.date).toLocaleDateString()}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+};
+
+// ─── SETTINGS ──────────────────────────────────────────────────────────────────
+const ManagerSettings = () => {
+  const [fee, setFee] = useState('');
+  const [msg, setMsg] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.get('/api/managers/fee').then(r => setFee(r.data.messFee)).catch(() => {});
+  }, []);
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    setLoading(true); setMsg('');
+    try {
+      await api.put('/api/managers/fee', { messFee: Number(fee) });
+      setMsg('Fee updated successfully!');
+    } catch {
+      setMsg('Failed to update fee');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Card className="p-6 max-w-lg">
+      <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200 mb-6 flex items-center gap-2">
+        <Settings size={18} className="text-amber-500" /> Manager Settings
+      </h3>
+      <form onSubmit={handleSave} className="space-y-5">
+        <div>
+          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2 block">Monthly Mess Fee (₹)</label>
+          <p className="text-[11px] text-slate-500 mb-3">This fee is displayed to your students on their payment portal.</p>
+          <input type="number" value={fee} onChange={e=>setFee(e.target.value)} required placeholder="e.g. 3500" className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2.5 px-3 text-sm font-bold text-slate-800 dark:text-white focus:ring-amber-500 focus:border-amber-500" />
+        </div>
+        {msg && <p className={`text-[11px] font-bold p-2 rounded-lg text-center ${msg.includes('success') ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>{msg}</p>}
+        <button type="submit" disabled={loading} className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all shadow-lg shadow-amber-500/20 flex justify-center items-center gap-2">
+          <Save size={14} /> {loading ? 'Saving...' : 'Save Changes'}
+        </button>
+      </form>
+    </Card>
+  );
+};
+
+// ─── STUDENT MANAGEMENT ────────────────────────────────────────────────────────
+const StudentManagement = () => {
+  const [students, setStudents] = useState([]);
+  const [addStudentModal, setAddStudentModal] = useState(false);
+  const [editStudentModal, setEditStudentModal] = useState(null);
+  const [newStudent, setNewStudent] = useState({ name: '', email: '', rollNumber: '', password: '', roomNumber: '', contact: '' });
+  const [editStudentData, setEditStudentData] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const fetchStudents = async () => {
+    try {
+      const today = getToday();
+      const lRes = await api.get(`/api/attendance/students-list?date=${today}`);
+      setStudents(lRes.data.data);
+    } catch {}
+  };
+
+  useEffect(() => { fetchStudents(); }, []);
+
+  const handleEditDates = async (id, sDate, eDate) => {
+    const start = prompt('Enter Join Date (YYYY-MM-DD):', sDate ? sDate.split('T')[0] : '');
+    if (!start) return;
+    const end = prompt('Enter End Date (YYYY-MM-DD):', eDate ? eDate.split('T')[0] : '');
+    if (!end) return;
+    try {
+      await api.put(`/api/managers/students/${id}/subscription`, { subscriptionStart: start, subscriptionEnd: end });
+      fetchStudents();
+    } catch (e) {
+      alert('Failed to update dates');
+    }
+  };
+
+  const handleAddStudent = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.post('/api/managers/students', newStudent);
+      setAddStudentModal(false);
+      setNewStudent({ name: '', email: '', rollNumber: '', password: '', roomNumber: '', contact: '' });
+      fetchStudents();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to add student');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteStudent = async (id, name) => {
+    if (!window.confirm(`Are you sure you want to completely remove ${name} from this hostel? This action cannot be undone.`)) return;
+    try {
+      await api.delete(`/api/managers/students/${id}`);
+      fetchStudents();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to remove student');
+    }
+  };
+
+  const handleUpdateStudent = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await api.put(`/api/managers/students/${editStudentModal}`, editStudentData);
+      setEditStudentModal(null);
+      setEditStudentData({});
+      fetchStudents();
+    } catch (err) {
+      alert(err.response?.data?.message || 'Failed to update student');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card className="p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">Manage Students</h3>
+          <button onClick={() => setAddStudentModal(true)} className="py-1.5 px-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-[11px] transition-all flex items-center gap-1 shadow-lg shadow-amber-500/20">
+            + Add New Student
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs text-left">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-slate-700 text-slate-500">
+                <th className="pb-3 pl-2">Name / Roll</th>
+                <th className="pb-3">Email</th>
+                <th className="pb-3">Room</th>
+                <th className="pb-3">Contact</th>
+                <th className="pb-3">Join Date</th>
+                <th className="pb-3">End Date</th>
+                <th className="pb-3"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {students.map((s, i) => (
+                <tr key={i} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                  <td className="py-3 pl-2"><p className="font-bold text-slate-800 dark:text-white">{s.name}</p><p className="text-[10px] text-slate-400">{s.rollNumber}</p></td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400">{s.email}</td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400">{s.roomNumber}</td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400">{s.contact}</td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400 text-[10px]">{s.subscriptionStart ? new Date(s.subscriptionStart).toLocaleDateString() : 'N/A'}</td>
+                  <td className="py-3 text-slate-600 dark:text-slate-400 text-[10px]">{s.subscriptionEnd ? new Date(s.subscriptionEnd).toLocaleDateString() : 'N/A'}</td>
+                  <td className="py-3 pr-2 text-right whitespace-nowrap">
+                    <button onClick={() => {
+                      setEditStudentModal(s._id || s.id);
+                      setEditStudentData({ name: s.name, email: s.email, rollNumber: s.rollNumber, roomNumber: s.roomNumber, contact: s.contact });
+                    }} className="text-slate-400 hover:text-indigo-500 transition-colors p-1 mr-1" title="Edit Student Profile">
+                      <UserCog size={14} />
+                    </button>
+                    <button onClick={() => handleEditDates(s._id || s.id, s.subscriptionStart, s.subscriptionEnd)} className="text-slate-400 hover:text-amber-500 transition-colors p-1 mr-1" title="Edit Subscription Dates">
+                      <Edit size={14} />
+                    </button>
+                    <button onClick={() => handleDeleteStudent(s._id || s.id, s.name)} className="text-slate-400 hover:text-red-500 transition-colors p-1" title="Remove Student">
+                      <Trash2 size={14} />
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Add Student Modal */}
+      {addStudentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full p-6 border-slate-700">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">Add New Student</h2>
+              <button onClick={() => setAddStudentModal(false)} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleAddStudent} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Full Name</label>
+                <input type="text" required value={newStudent.name} onChange={e=>setNewStudent({...newStudent, name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Roll Number</label>
+                  <input type="text" required value={newStudent.rollNumber} onChange={e=>setNewStudent({...newStudent, rollNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Room Number</label>
+                  <input type="text" required value={newStudent.roomNumber} onChange={e=>setNewStudent({...newStudent, roomNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Email</label>
+                <input type="email" required value={newStudent.email} onChange={e=>setNewStudent({...newStudent, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Contact Number</label>
+                <input type="text" required value={newStudent.contact} onChange={e=>setNewStudent({...newStudent, contact: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Password</label>
+                <input type="password" required minLength={6} value={newStudent.password} onChange={e=>setNewStudent({...newStudent, password: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <button type="submit" disabled={loading} className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all mt-6 disabled:opacity-50">
+                {loading ? 'Adding...' : 'Add Student'}
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {editStudentModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <Card className="max-w-md w-full p-6 border-slate-700">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-lg font-bold text-slate-800 dark:text-white">Edit Student Profile</h2>
+              <button onClick={() => setEditStudentModal(null)} className="text-slate-400 hover:text-white"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleUpdateStudent} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Full Name</label>
+                <input type="text" required value={editStudentData.name} onChange={e=>setEditStudentData({...editStudentData, name: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Roll Number</label>
+                  <input type="text" required value={editStudentData.rollNumber} onChange={e=>setEditStudentData({...editStudentData, rollNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+                </div>
+                <div>
+                  <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Room Number</label>
+                  <input type="text" required value={editStudentData.roomNumber} onChange={e=>setEditStudentData({...editStudentData, roomNumber: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+                </div>
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Email</label>
+                <input type="email" required value={editStudentData.email} onChange={e=>setEditStudentData({...editStudentData, email: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500 mb-1 block">Contact Number</label>
+                <input type="text" required value={editStudentData.contact} onChange={e=>setEditStudentData({...editStudentData, contact: e.target.value})} className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl py-2 px-3 text-xs" />
+              </div>
+              <button type="submit" disabled={loading} className="w-full py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-xl text-xs transition-all mt-6 disabled:opacity-50">
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </form>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── MAIN ROUTER ───────────────────────────────────────────────────────────────
+const ManagerDashboard = () => {
+  const location = useLocation();
+  const path = location.pathname;
+
+  if (path === '/manager/attendance') return <LiveAttendance />;
+  if (path === '/manager/students') return <StudentManagement />;
+  if (path === '/manager/forecasting') return <Forecasting />;
+  if (path === '/manager/waste') return <WasteTracking />;
+  if (path === '/manager/menu') return <MenuManagement />;
+  if (path === '/manager/reports') return <Reports />;
+  if (path === '/manager/announcements') return <ManagerAnnouncements />;
+  if (path === '/manager/complaints') return <ComplaintsManagement />;
+  if (path === '/manager/settings') return <ManagerSettings />;
+  return <DashboardOverview />;
+};
+
+export default ManagerDashboard;
