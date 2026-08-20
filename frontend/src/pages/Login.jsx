@@ -254,7 +254,8 @@ const Login = () => {
                       required 
                       placeholder="e.g. 2026S001" 
                       value={emailOrRoll} 
-                      onChange={e => setEmailOrRoll(e.target.value)} 
+                      onChange={e => setEmailOrRoll(e.target.value)}
+                      className="text-white bg-transparent w-full outline-none placeholder:text-white/30"
                     />
                   </div>
                 </div>
@@ -270,7 +271,8 @@ const Login = () => {
                       required 
                       placeholder="e.g. manager1" 
                       value={managerId} 
-                      onChange={e => setManagerId(e.target.value)} 
+                      onChange={e => setManagerId(e.target.value)}
+                      className="text-white bg-transparent w-full outline-none placeholder:text-white/30"
                     />
                   </div>
                 </div>
@@ -287,6 +289,7 @@ const Login = () => {
                       placeholder="admin@foodback.com" 
                       value={adminEmail} 
                       onChange={e => setAdminEmail(e.target.value)} 
+                      className="text-white bg-transparent w-full outline-none placeholder:text-white/30"
                     />
                   </div>
                 </div>
@@ -305,6 +308,7 @@ const Login = () => {
                     placeholder="Enter your password" 
                     value={password} 
                     onChange={e => setPassword(e.target.value)} 
+                    className="text-white bg-transparent w-full outline-none placeholder:text-white/30"
                   />
                 </div>
               </div>
