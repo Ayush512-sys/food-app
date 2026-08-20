@@ -69,7 +69,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           onClick={() => setIsOpen(false)}
         />
       )}
-      <aside className={`fixed md:relative z-50 w-64 bg-slate-900 text-slate-100 flex flex-col h-screen shrink-0 border-r border-slate-800 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside className={`fixed md:relative z-50 w-64 glass-panel text-slate-100 flex flex-col h-screen shrink-0 border-r border-slate-800 transition-transform duration-300 ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
       {/* Brand Logo */}
       <div className="p-6 border-b border-slate-800 flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20 text-white font-bold text-lg">

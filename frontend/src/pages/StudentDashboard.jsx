@@ -30,7 +30,7 @@ const getCurrentHour = () => {
 };
 
 const Card = ({ children, className = '' }) => (
-  <div className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg ${className}`}>
+  <div className={`glass rounded-2xl p-6 ${className}`}>
     {children}
   </div>
 );

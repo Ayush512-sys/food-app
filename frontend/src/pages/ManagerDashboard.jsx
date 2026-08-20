@@ -22,8 +22,8 @@ const getToday = () => {
   return new Date().toISOString().split('T')[0];
 };
 
-const Card = ({ children, className = '', ...props }) => (
-  <div className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg ${className}`} {...props}>
+const Card = ({ children, className = '' }) => (
+  <div className={`glass rounded-2xl p-6 ${className}`}>
     {children}
   </div>
 );

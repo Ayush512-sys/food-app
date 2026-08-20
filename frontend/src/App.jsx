@@ -16,7 +16,7 @@ import AdminDashboard from './pages/AdminDashboard';
 const DashboardLayout = ({ children, title }) => {
   const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-transparent relative z-10">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Navbar title={title} onMenuClick={() => setIsSidebarOpen(true)} />
@@ -85,9 +85,12 @@ const AdminLayout = () => {
   );
 };
 
+import Background from './components/Background';
+
 function App() {
   return (
     <ThemeProvider>
+      <Background />
       <SocketProvider>
         <Router>
           <Routes>

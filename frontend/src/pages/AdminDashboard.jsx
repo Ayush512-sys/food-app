@@ -52,7 +52,7 @@ const tierColors = {
 
 const Card = ({ children, className = '' }) => (
   <div
-    className={`bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-2xl shadow-lg p-6 ${className}`}
+    className={`glass rounded-2xl p-6 ${className}`}
   >
     {children}
   </div>
@@ -73,9 +73,9 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('subscriptions');
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors">
+    <div className="min-h-screen bg-transparent text-slate-800 dark:text-slate-100 transition-colors">
       {/* Header */}
-      <header className="sticky top-0 z-30 bg-white/70 dark:bg-slate-900/70 backdrop-blur-md border-b border-slate-200 dark:border-slate-700">
+      <header className="sticky top-0 z-30 glass-panel border-b border-slate-200 dark:border-slate-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <ShieldCheck className="w-7 h-7 text-amber-500" />

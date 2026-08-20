@@ -2,45 +2,300 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --orange: #ff6a00;
+  --orange-light: #ff914d;
+  --red: #ff3158;
+  --yellow: #ffc107;
+  --bg: #0b0705;
+  --white: #ffffff;
+}
+
 @layer base {
   body {
-    @apply font-sans antialiased bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
+    @apply font-sans antialiased text-white overflow-x-hidden;
+    background: var(--bg);
   }
 }
 
-/* Glassmorphism utility */
+/* =====================================================
+   BACKGROUND
+===================================================== */
+.premium-bg {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  z-index: -10;
+  background:
+    radial-gradient(circle at 10% 20%, rgba(255,90,0,0.18), transparent 30%),
+    radial-gradient(circle at 90% 80%, rgba(255,30,80,0.18), transparent 35%),
+    linear-gradient(135deg, #0c0806, #170a05, #0b0504);
+}
+
+/* =====================================================
+   GLOWING ORBS
+===================================================== */
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(100px);
+  pointer-events: none;
+}
+
+.orb-1 {
+  width: 500px;
+  height: 500px;
+  background: rgba(255,82,0,0.25);
+  left: -220px;
+  top: -200px;
+  animation: orb1 12s ease-in-out infinite alternate;
+}
+
+.orb-2 {
+  width: 450px;
+  height: 450px;
+  background: rgba(255,20,70,0.2);
+  right: -180px;
+  bottom: -180px;
+  animation: orb2 15s ease-in-out infinite alternate;
+}
+
+.orb-3 {
+  width: 300px;
+  height: 300px;
+  background: rgba(255,174,0,0.08);
+  left: 45%;
+  top: 30%;
+  animation: orb3 10s ease-in-out infinite alternate;
+}
+
+@keyframes orb1 {
+  from { transform: translate(0,0) scale(1); }
+  to { transform: translate(160px,120px) scale(1.2); }
+}
+
+@keyframes orb2 {
+  from { transform: translate(0,0) scale(1); }
+  to { transform: translate(-120px,-100px) scale(1.2); }
+}
+
+@keyframes orb3 {
+  from { transform: translate(0,0); }
+  to { transform: translate(100px,-80px); }
+}
+
+/* =====================================================
+   NOISE
+===================================================== */
+.noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.035;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.8'/%3E%3C/svg%3E");
+}
+
+/* =====================================================
+   PARTICLES
+===================================================== */
+.particles span {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.5);
+  box-shadow: 0 0 10px rgba(255,130,50,0.8);
+  animation: particleFloat 8s linear infinite;
+}
+
+.particles span:nth-child(1) { left: 10%; top: 20%; animation-delay: 0s; }
+.particles span:nth-child(2) { left: 20%; top: 70%; animation-delay: 2s; }
+.particles span:nth-child(3) { left: 32%; top: 40%; animation-delay: 4s; }
+.particles span:nth-child(4) { left: 45%; top: 15%; animation-delay: 1s; }
+.particles span:nth-child(5) { left: 55%; top: 80%; animation-delay: 5s; }
+.particles span:nth-child(6) { left: 65%; top: 30%; animation-delay: 3s; }
+.particles span:nth-child(7) { left: 75%; top: 60%; animation-delay: 2s; }
+.particles span:nth-child(8) { left: 85%; top: 15%; animation-delay: 6s; }
+.particles span:nth-child(9) { left: 92%; top: 50%; animation-delay: 1s; }
+.particles span:nth-child(10) { left: 15%; top: 90%; animation-delay: 4s; }
+
+@keyframes particleFloat {
+  0% { transform: translateY(0) scale(0.5); opacity: 0; }
+  20% { opacity: 0.8; }
+  80% { opacity: 0.5; }
+  100% { transform: translateY(-100px) scale(1.2); opacity: 0; }
+}
+
+/* =====================================================
+   FLOATING FOOD
+===================================================== */
+.floating-food {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 25px;
+  font-size: 43px;
+  background: rgba(255,255,255,0.045);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+  opacity: 0.55;
+  transition: transform 0.5s ease;
+}
+
+.food-1 { left: 4%; top: 18%; animation: foodFloat1 8s infinite ease-in-out; }
+.food-2 { left: 29%; top: 5%; animation: foodFloat2 10s infinite ease-in-out; }
+.food-3 { right: 5%; top: 12%; animation: foodFloat1 9s infinite ease-in-out; }
+.food-4 { left: 2%; bottom: 18%; animation: foodFloat2 11s infinite ease-in-out; }
+.food-5 { right: 28%; bottom: 5%; animation: foodFloat1 8s infinite ease-in-out; }
+.food-6 { right: 3%; bottom: 25%; animation: foodFloat2 10s infinite ease-in-out; }
+.food-7 { left: 43%; top: 8%; animation: foodFloat1 12s infinite ease-in-out; }
+.food-8 { right: 40%; top: 75%; animation: foodFloat2 9s infinite ease-in-out; }
+
+@keyframes foodFloat1 {
+  0%,100% { transform: translateY(0) rotate(-4deg); }
+  50% { transform: translateY(-30px) rotate(6deg); }
+}
+
+@keyframes foodFloat2 {
+  0%,100% { transform: translateY(0) rotate(5deg); }
+  50% { transform: translateY(35px) rotate(-8deg); }
+}
+
+/* =====================================================
+   RINGS
+===================================================== */
+.ring {
+  position: absolute;
+  border: 1px solid rgba(255,110,50,0.08);
+  border-radius: 50%;
+}
+.ring-1 { width: 700px; height: 700px; left: -300px; bottom: -300px; }
+.ring-2 { width: 600px; height: 600px; right: -300px; top: -300px; }
+
+/* =====================================================
+   MAIN APP LAYOUT (LOGIN PAGE)
+===================================================== */
+.app-container {
+  width: min(1400px, 94vw);
+  min-height: 760px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 38px;
+  overflow: hidden;
+  background: rgba(12,8,6,0.58);
+  backdrop-filter: blur(30px);
+  box-shadow: 0 50px 150px rgba(0,0,0,0.55);
+}
+
+.hero-section {
+  position: relative;
+  padding: 60px 65px 35px;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(255,90,0,0.07), transparent 50%);
+}
+
+.login-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 45px;
+  background: rgba(0,0,0,0.18);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 42px;
+  border-radius: 30px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025));
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 30px 90px rgba(0,0,0,0.3);
+  transition: transform 0.2s ease;
+}
+
+@media (max-width: 1100px) {
+  .app-container { grid-template-columns: 1fr 0.85fr; }
+  .hero-section { padding-left: 45px; }
+}
+
+@media (max-width: 900px) {
+  .app-container {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin: 25px auto;
+    min-height: auto;
+    display: block;
+    max-width: 550px;
+  }
+  .hero-section { display: none; }
+  .login-section { padding: 30px 20px; }
+}
+
+/* =====================================================
+   GLASSMORPHISM & PREMIUM UTILITIES (For inside app)
+===================================================== */
 .glass {
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(30,22,18,0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+}
+
+.glass-panel {
+  background: linear-gradient(145deg, rgba(255,255,255,0.075), rgba(255,255,255,0.025));
+  border: 1px solid rgba(255,255,255,0.1);
+  box-shadow: 0 30px 90px rgba(0,0,0,0.3);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.dark .glass {
-  background: rgba(30, 41, 59, 0.7);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+.text-gradient {
+  background: linear-gradient(90deg, #ff8a00, #ff4568);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-/* Custom Scrollbar for premium feel */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 dark:bg-slate-700 rounded-full hover:bg-slate-400 dark:hover:bg-slate-600;
+  background: rgba(255,255,255,0.2);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.3); }
+
+/* Plate and other elements from mockup */
+.plate {
+  position: absolute; left: 50%; top: 50%; width: 300px; height: 300px;
+  transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, #eee 0 60%, #ddd 61% 64%, #aaa 65% 67%, #eee 68% 72%, #c8c8c8 73% 74%, #fff 75%);
+  box-shadow: 0 35px 80px rgba(0,0,0,0.55);
+  animation: plateFloat 6s ease-in-out infinite;
 }
 
-/* Micro-animations */
-.hover-lift {
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+@keyframes plateFloat {
+  0%,100% { margin-top: 0; }
+  50% { margin-top: -15px; }
 }
+.plate-inner {
+  position: absolute; width: 235px; height: 235px; left: 32px; top: 32px;
+  border-radius: 50%; overflow: hidden; background: radial-gradient(circle, #f5e7c5, #dfcfaa);
+}
+.rice { position: absolute; width: 125px; height: 95px; left: 50px; top: 35px; border-radius: 50%; background: radial-gradient(ellipse at center, white, #eee); box-shadow: inset 0 -8px 10px rgba(0,0,0,0.08); }
+.curry { position: absolute; width: 85px; height: 70px; right: 20px; top: 55px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ffcb55, #d77a14); box-shadow: inset 0 -8px 12px rgba(80,30,0,0.2); }
+.vegetable { position: absolute; width: 90px; height: 60px; left: 25px; bottom: 45px; border-radius: 50%; background: radial-gradient(circle at 40% 30%, #9fd85e, #458b2d); }
+.salad { position: absolute; width: 70px; height: 50px; right: 20px; bottom: 35px; border-radius: 50%; background: radial-gradient(circle at 30% 30%, #ff6b6b, #4caf50); }
+.roti { position: absolute; width: 75px; height: 70px; left: 80px; bottom: 20px; border-radius: 50%; background: radial-gradient(circle, #e9a84d, #a95d20); transform: rotate(-12deg); }
 
-.hover-lift:hover {
-  transform: translateY(-2px);
-  @apply shadow-lg shadow-slate-200/50 dark:shadow-none;
-}
+.card-float { animation: cardFloat 5s ease-in-out infinite; }
+@keyframes cardFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
