@@ -329,7 +329,7 @@ function ManagersTab() {
     try {
       setLoading(true);
       const { data } = await api.get('/api/admin/managers');
-      setManagers(Array.isArray(data) ? data : data.managers ?? []);
+      setManagers(data.data || []);
     } catch {
       /* silent */
     } finally {
@@ -349,7 +349,7 @@ function ManagersTab() {
     try {
       setSubmitting(true);
       const { data } = await api.post('/api/admin/managers', formData);
-      setManagers((prev) => [...prev, data.manager ?? data]);
+      setManagers((prev) => [...prev, data.data]);
       setFormData({ name: '', managerId: '', hostel: '', password: '' });
       setShowForm(false);
     } catch {
