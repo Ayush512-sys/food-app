@@ -200,7 +200,7 @@
 .input-wrapper { height: 55px; display: flex; align-items: center; padding: 0 14px; border-radius: 15px; background: rgba(0,0,0,0.18); border: 1px solid rgba(255,255,255,0.09); transition: border 0.3s, box-shadow 0.3s, background 0.3s; }
 .input-wrapper:focus-within { border-color: rgba(255,112,67,0.7); background: rgba(255,80,30,0.035); box-shadow: 0 0 0 4px rgba(255,80,30,0.07); }
 .input-icon { width: 30px; color: rgba(255,255,255,0.3); }
-.input-wrapper input { width: 100%; border: none; outline: none; background: transparent; color: white; font-family: inherit; font-size: 12px; }
+.input-wrapper input { width: 100%; border: none; outline: none; background: transparent !important; color: white !important; font-family: inherit; font-size: 12px; }
 .input-wrapper input::placeholder { color: rgba(255,255,255,0.23); }
 
 /* AUTOFILL FIX */
