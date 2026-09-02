@@ -16,6 +16,9 @@
     @apply font-sans antialiased text-white overflow-x-hidden;
     background: var(--bg);
   }
+  input, textarea, select {
+    color: white !important;
+  }
 }
 
 /* =====================================================
