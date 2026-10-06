@@ -91,8 +91,8 @@ const Login = () => {
 
   const handleDemo = () => {
     setRole('student');
-    setEmailOrRoll('demo@foodback.com');
-    setPassword('123456');
+    setEmailOrRoll('2026S001');
+    setPassword('password123');
     setError('');
   };
 
