@@ -2,13 +2,16 @@ import React, { useState, useEffect } from 'react';
 import api from '../api';
 import { useAuthStore } from '../store/useAuthStore';
 import { useDataStore } from '../store/useDataStore';
-import { Search, Plus, Trash2, Printer, ChevronDown, ScanLine, Camera } from 'lucide-react';
+import { Search, Plus, Trash2, Printer, ChevronDown, ScanLine, Camera, CloudOff, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useScanner } from '../hooks/useScanner';
 import { MobileScanner } from '../components/scanner/MobileScanner';
+import { queueOfflineInvoice } from '../utils/offlineStorage';
+import { useSyncStore } from '../utils/offlineSync';
 
 export default function Billing() {
   const token = useAuthStore(state => state.token);
-  const { products, setProducts, categories, setCategories } = useDataStore();
+  const { products, setProducts, categories, setCategories, adjustProductStockLocally, loadOfflineData } = useDataStore();
+  const { isOnline, pendingCount, syncAll, isSyncing, syncMessage } = useSyncStore();
   const [items, setItems] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -35,7 +38,8 @@ export default function Billing() {
         setProducts(prodRes.data);
         setCategories(catRes.data);
       } catch (err) {
-        console.error('Failed to fetch data for billing', err);
+        console.error('Failed to fetch data for billing, loading offline cache...', err);
+        await loadOfflineData();
       }
     };
     fetchData();
@@ -59,7 +63,6 @@ export default function Billing() {
     const matchesCat = selectedCategoryFilter ? p.category_id?.toString() === selectedCategoryFilter : true;
     return matchesSearch && matchesCat;
   });
-
 
   const handleAddProductToBill = (product: any) => {
     setItems(prev => {
@@ -104,7 +107,9 @@ export default function Billing() {
     const cleanScan = scannedCode.trim().toLowerCase();
     const product = products.find(p => 
       p.code?.trim().toLowerCase() === cleanScan || 
-      p.id.toString() === cleanScan
+      p.id.toString() === cleanScan ||
+      p.barcode?.trim().toLowerCase() === cleanScan ||
+      p.sku?.trim().toLowerCase() === cleanScan
     );
     
     if (product) {
@@ -119,7 +124,9 @@ export default function Billing() {
     const cleanScan = barcodeInput.trim().toLowerCase();
     const product = products.find(p => 
       p.code?.trim().toLowerCase() === cleanScan || 
-      p.id.toString() === cleanScan
+      p.id.toString() === cleanScan ||
+      p.barcode?.trim().toLowerCase() === cleanScan ||
+      p.sku?.trim().toLowerCase() === cleanScan
     );
     
     if (product) {
@@ -135,7 +142,9 @@ export default function Billing() {
     const cleanScan = barcode.trim().toLowerCase();
     const product = products.find(p => 
       p.code?.trim().toLowerCase() === cleanScan || 
-      p.id.toString() === cleanScan
+      p.id.toString() === cleanScan ||
+      p.barcode?.trim().toLowerCase() === cleanScan ||
+      p.sku?.trim().toLowerCase() === cleanScan
     );
     
     if (product) {
@@ -153,25 +162,26 @@ export default function Billing() {
     
     setIsSubmitting(true);
     try {
-      // 1. Create or get customer
-      const custRes = await api.post(`/billing/customers`, {
-        name: customerName,
-        mobile: customerMobile
-      }).catch(err => {
-        // If mobile exists, it might fail or we need to handle it. For now, assume it works or we should fetch existing.
-        // Quick hack for demo: if it fails, just fetch all and find by mobile
-        return api.get(`/billing/customers`);
-      });
-      
-      let customerId = custRes.data?.id;
-      if (!customerId && Array.isArray(custRes.data)) {
-        const existing = custRes.data.find((c: any) => c.mobile === customerMobile);
-        if (existing) customerId = existing.id;
-        else throw new Error('Customer creation failed');
+      let customerId = null;
+      if (navigator.onLine) {
+        try {
+          const custRes = await api.post(`/billing/customers`, {
+            name: customerName,
+            mobile: customerMobile
+          }).catch(() => api.get(`/billing/customers`));
+
+          if (custRes?.data?.id) customerId = custRes.data.id;
+          else if (Array.isArray(custRes?.data)) {
+            const existing = custRes.data.find((c: any) => c.mobile === customerMobile);
+            if (existing) customerId = existing.id;
+          }
+        } catch (e) {
+          console.warn('Customer lookup skipped in fallback/offline mode');
+        }
       }
 
       const payload = {
-        customer_id: null,
+        customer_id: customerId,
         location_id: 1,
         items: items.map(i => ({
           product_id: i.product_id,
@@ -186,18 +196,83 @@ export default function Billing() {
         gst_amount: 0
       };
 
-      const invRes = await api.post(`/billing/invoices`, payload);
-      
-      const newInvoice = {
-         ...invRes.data,
-         customerName,
-         customerMobile,
-         items: [...items],
-         grandTotal,
-         gstAmount: Math.round(grandTotal * 0.18),
-         finalTotal: grandTotal + Math.round(grandTotal * 0.18)
-      };
-      
+      let newInvoice: any = null;
+
+      if (!navigator.onLine) {
+        // Direct offline flow
+        const localId = await queueOfflineInvoice({
+          customerName,
+          customerMobile,
+          payload,
+          items: [...items],
+          grandTotal
+        });
+
+        // Deduct quantities locally immediately
+        for (const it of items) {
+          if (it.product_id) {
+            adjustProductStockLocally(it.product_id, -it.quantity);
+          }
+        }
+
+        await useSyncStore.getState().updatePendingCount();
+
+        newInvoice = {
+          invoice_number: localId,
+          customerName,
+          customerMobile,
+          items: [...items],
+          grandTotal,
+          gstAmount: Math.round(grandTotal * 0.18),
+          finalTotal: grandTotal + Math.round(grandTotal * 0.18),
+          isOffline: true
+        };
+      } else {
+        try {
+          const invRes = await api.post(`/billing/invoices`, payload);
+          newInvoice = {
+            ...invRes.data,
+            customerName,
+            customerMobile,
+            items: [...items],
+            grandTotal,
+            gstAmount: Math.round(grandTotal * 0.18),
+            finalTotal: grandTotal + Math.round(grandTotal * 0.18)
+          };
+          for (const it of items) {
+            if (it.product_id) {
+              adjustProductStockLocally(it.product_id, -it.quantity);
+            }
+          }
+        } catch (netErr: any) {
+          console.warn('Network request failed, saving bill offline:', netErr);
+          const localId = await queueOfflineInvoice({
+            customerName,
+            customerMobile,
+            payload,
+            items: [...items],
+            grandTotal
+          });
+          for (const it of items) {
+            if (it.product_id) {
+              adjustProductStockLocally(it.product_id, -it.quantity);
+            }
+          }
+          await useSyncStore.getState().updatePendingCount();
+
+          newInvoice = {
+            invoice_number: localId,
+            customerName,
+            customerMobile,
+            items: [...items],
+            grandTotal,
+            gstAmount: Math.round(grandTotal * 0.18),
+            finalTotal: grandTotal + Math.round(grandTotal * 0.18),
+            isOffline: true
+          };
+        }
+      }
+
       setLastInvoice(newInvoice);
 
       // Reset POS
@@ -221,27 +296,40 @@ export default function Billing() {
             <head>
               <title>Invoice ${inv.invoice_number}</title>
               <style>
-                body { font-family: monospace; padding: 20px; }
-                h1 { text-align: center; margin-bottom: 5px; }
-                p { margin: 2px 0; }
-                table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-                th, td { border-bottom: 1px dashed #000; padding: 5px; text-align: left; }
-                .text-right { text-align: right; }
+                @page { size: 76mm auto; margin: 0; }
+                body { 
+                  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, monospace; 
+                  padding: 12px; 
+                  margin: 0 auto; 
+                  max-width: 76mm; 
+                  color: #000;
+                }
+                h1 { text-align: center; font-size: 15px; margin: 0 0 2px 0; font-weight: 800; letter-spacing: 0.5px; }
+                p { margin: 2px 0; font-size: 11px; }
                 .center { text-align: center; }
-                .total-row { font-weight: bold; }
+                table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+                th { border-top: 1px dashed #000; border-bottom: 1px dashed #000; padding: 4px 2px; text-align: left; }
+                td { border-bottom: 1px dashed #e5e5e5; padding: 4px 2px; text-align: left; }
+                .text-right { text-align: right; }
+                .total-section { margin-top: 8px; border-top: 1px dashed #000; padding-top: 6px; }
+                .total-row { font-weight: bold; font-size: 13px; }
+                .footer { margin-top: 14px; text-align: center; font-size: 10px; border-top: 1px dashed #000; padding-top: 6px; }
               </style>
             </head>
             <body>
               <h1>PANCHAWATI AUTOMOBILES</h1>
-              <p class="center">Receipt: ${inv.invoice_number}</p>
+              <p class="center" style="font-weight:600;">TAX INVOICE / CASH MEMO</p>
+              <p class="center">Receipt: <b>${inv.invoice_number}</b></p>
+              <p class="center">Date: ${new Date().toLocaleDateString('en-GB')}</p>
               <p class="center">Customer: ${inv.customerName} (${inv.customerMobile})</p>
-              <hr style="border:1px dashed #000" />
+              ${inv.isOffline ? '<p class="center" style="color:#d97706; font-size:10px; font-weight:bold;">[OFFLINE INVOICE - SYNC PENDING]</p>' : ''}
+              
               <table>
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th>Qty</th>
-                    <th>Price</th>
+                    <th style="width:28px;">Qty</th>
+                    <th class="text-right">Price</th>
                     <th class="text-right">Total</th>
                   </tr>
                 </thead>
@@ -250,18 +338,33 @@ export default function Billing() {
                     <tr>
                       <td>${i.name}</td>
                       <td>${i.quantity}</td>
-                      <td>${i.price}</td>
-                      <td class="text-right">${i.total}</td>
+                      <td class="text-right">${i.price}</td>
+                      <td class="text-right font-medium">${i.total}</td>
                     </tr>
                   `).join('')}
                 </tbody>
               </table>
-              <div style="margin-top:15px; text-align:right;">
-                <p>Subtotal: Rs. ${inv.grandTotal}</p>
-                <p>GST (18%): Rs. ${inv.gstAmount}</p>
-                <h3 style="margin-top:5px;">Grand Total: Rs. ${inv.finalTotal}</h3>
+
+              <div class="total-section">
+                <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                  <span>Subtotal:</span>
+                  <span>Rs. ${inv.grandTotal}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                  <span>GST (18%):</span>
+                  <span>Rs. ${inv.gstAmount}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; border-top:1px solid #000; padding-top:4px;" class="total-row">
+                  <span>Grand Total:</span>
+                  <span>Rs. ${inv.finalTotal}</span>
+                </div>
               </div>
-              <p class="center" style="margin-top:20px;">Thank you for your business!</p>
+              
+              <div class="footer">
+                <p>Thank you for your visit!</p>
+                <p>Goods once sold will not be taken back.</p>
+              </div>
+
               <script>
                 window.onload = function() { window.print(); window.close(); }
               </script>
@@ -274,161 +377,190 @@ export default function Billing() {
 
   const handleWhatsAppShare = (inv: any) => {
       let billSummary = `*PANCHAWATI AUTOMOBILES*\n`;
-      billSummary += `Receipt: ${inv.invoice_number}\n`;
-      billSummary += `Customer: ${inv.customerName}\n\n`;
-      billSummary += `*Items:*\n`;
-      inv.items.forEach((i: any) => {
-        billSummary += `- ${i.name} (${i.quantity}) : Rs. ${i.total}\n`;
+      billSummary += `*TAX INVOICE / CASH MEMO*\n`;
+      billSummary += `--------------------------------\n`;
+      billSummary += `Receipt: *${inv.invoice_number}*\n`;
+      billSummary += `Date: ${new Date().toLocaleDateString('en-GB')}\n`;
+      billSummary += `Customer: ${inv.customerName}\n`;
+      billSummary += `--------------------------------\n`;
+      billSummary += `*Items Details:*\n`;
+      inv.items.forEach((i: any, idx: number) => {
+        billSummary += `${idx + 1}. ${i.name} - ${i.quantity} x Rs. ${i.price} = Rs. ${i.total}\n`;
       });
-      billSummary += `\n*Total: Rs. ${inv.finalTotal}* (inc GST)\n`;
-      billSummary += `Thank you for your business!`;
+      billSummary += `--------------------------------\n`;
+      billSummary += `Subtotal: Rs. ${inv.grandTotal}\n`;
+      billSummary += `GST (18%): Rs. ${inv.gstAmount}\n`;
+      billSummary += `*Total Amount: Rs. ${inv.finalTotal}*\n`;
+      billSummary += `--------------------------------\n`;
+      billSummary += `Thank you for your business! 🙏\n`;
+      billSummary += `*Panchawati BillBook*`;
 
-      // if mobile starts with 0 or +91, clean it. We assume Indian numbers (91)
       let phone = inv.customerMobile.replace(/\D/g, '');
       if (phone.length === 10) phone = '91' + phone;
 
-      const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(billSummary)}`;
+      const whatsappUrl = phone ? `https://wa.me/${phone}?text=${encodeURIComponent(billSummary)}` : `https://wa.me/?text=${encodeURIComponent(billSummary)}`;
       window.open(whatsappUrl, '_blank');
   };
 
   return (
     <div className="md:h-full flex flex-col space-y-4">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">POS / Billing</h2>
-        <button className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">
-          <Printer className="mr-2 h-4 w-4" /> Print Previous
-        </button>
-      </div>
+      {/* Top Offline / Sync Banner if offline or pending items */}
+      {(!isOnline || pendingCount > 0 || syncMessage) && (
+        <div className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium ${
+          !isOnline 
+            ? 'bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-300' 
+            : 'bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-900/20 dark:border-indigo-800 dark:text-indigo-300'
+        }`}>
+          <div className="flex items-center space-x-2">
+            {!isOnline ? (
+              <>
+                <CloudOff className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                <span>Working in Offline Mode. Invoices & stock deductions are saved locally on this device.</span>
+              </>
+            ) : (
+              <>
+                <RefreshCw className={`w-4 h-4 text-indigo-600 dark:text-indigo-400 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{syncMessage || `${pendingCount} offline transaction(s) pending sync`}</span>
+              </>
+            )}
+          </div>
+          {isOnline && pendingCount > 0 && (
+            <button
+              onClick={() => syncAll()}
+              disabled={isSyncing}
+              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-colors disabled:opacity-50"
+            >
+              {isSyncing ? 'Syncing...' : 'Sync Now'}
+            </button>
+          )}
+        </div>
+      )}
 
+      {/* Main Billing Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1">
-        
         {/* Left Side: Product Selection & Bill Items */}
         <div className="lg:col-span-2 flex flex-col space-y-4">
-          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 space-y-4">
-            
-            {/* Filters Row */}
-            <div className="flex gap-4">
+          {/* Barcode & Search Controls */}
+          <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
               <div className="relative flex-1">
+                <ScanLine className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
                 <input 
-                  list="billing-category-search-list"
-                  className="block w-full pl-3 pr-8 py-2.5 text-sm border border-gray-300 rounded-lg bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-gray-300"
-                  placeholder="Search Categories..."
+                  type="text" 
+                  placeholder="Scan or enter barcode / item code..." 
+                  value={barcodeInput}
+                  onChange={(e) => setBarcodeInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleBarcodeSubmit()}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                />
+              </div>
+
+              {/* Mobile Camera Scanner Button */}
+              <button
+                type="button"
+                onClick={() => setIsCameraOpen(true)}
+                className="flex items-center justify-center px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-800 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors font-medium text-sm shadow-sm"
+                title="Scan with Mobile Camera"
+              >
+                <Camera className="w-5 h-5 mr-1.5" />
+                Scan Camera
+              </button>
+
+              {/* Custom Item Button */}
+              <button
+                type="button"
+                onClick={() => setIsCustomItemModalOpen(true)}
+                className="flex items-center justify-center px-4 py-2 bg-amber-50 border border-amber-200 text-amber-700 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-400 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/50 transition-colors font-medium text-sm shadow-sm"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Custom Item
+              </button>
+            </div>
+
+            {/* Filter by Category & Search */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search item by name, OEM, model..." 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-4 py-1.5 border border-gray-300 rounded-md text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="relative">
+                <input 
+                  list="billing-cat-list"
+                  placeholder="Filter category..."
                   value={catInput}
                   onChange={(e) => {
                     setCatInput(e.target.value);
-                    const cat = categories.find(c => c.name === e.target.value);
-                    setSelectedCategoryFilter(cat ? cat.id.toString() : '');
+                    const found = categories.find(c => c.name.toLowerCase() === e.target.value.toLowerCase());
+                    setSelectedCategoryFilter(found ? found.id.toString() : '');
                   }}
+                  className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm dark:bg-zinc-800 dark:border-zinc-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
-                <datalist id="billing-category-search-list">
-                  {categories.map(c => (
-                    <option key={c.id} value={c.name} />
-                  ))}
+                <datalist id="billing-cat-list">
+                  {categories.map(c => <option key={c.id} value={c.name} />)}
                 </datalist>
-                <ChevronDown className="absolute right-3 top-3 h-4 w-4 text-gray-400 pointer-events-none" />
               </div>
             </div>
-
-            {/* Fast Entry Barcode Scanner Row */}
-            <div className="flex gap-2">
-              <div className="relative flex items-center flex-1">
-                <ScanLine className="absolute left-3 h-5 w-5 text-indigo-500" />
-                <input 
-                  autoFocus
-                  className="w-full pl-10 pr-4 py-3 bg-indigo-50/50 border border-indigo-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-indigo-900/10 dark:border-indigo-800 dark:text-white"
-                  placeholder="Scan or type item code here..."
-                  value={barcodeInput}
-                  onChange={e => setBarcodeInput(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleBarcodeSubmit();
-                    }
-                  }}
-                />
-              </div>
-              <button 
-                onClick={() => setIsCameraOpen(true)}
-                className="bg-indigo-600 text-white p-3 rounded-lg flex items-center justify-center hover:bg-indigo-700 active:scale-95 transition-transform"
-                title="Open Camera Scanner"
-              >
-                <Camera className="h-6 w-6" />
-              </button>
-            </div>
-
-            {/* Search Row & Custom Item Button */}
-            <div className="flex gap-2 items-center">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-                <input 
-                  className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white"
-                  placeholder="Search by name, barcode, OEM, or vehicle (e.g. Splendor Plus)"
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </div>
-              <button 
-                onClick={() => setIsCustomItemModalOpen(true)}
-                className="bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 p-3 rounded-lg flex items-center justify-center hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors"
-                title="Add Custom/Manual Item"
-              >
-                <Plus className="h-6 w-6" />
-              </button>
-            </div>
-            
-            {/* Product Grid - Only show when searching or filtering */}
-            {(searchTerm || selectedCategoryFilter) && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 max-h-48 overflow-y-auto pr-2 custom-scrollbar mt-4">
-                {filteredProducts.map(product => (
-                  <div 
-                    key={product.id} 
-                    onClick={() => handleAddProductToBill(product)}
-                    className="border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-colors dark:border-zinc-700 dark:hover:border-indigo-500 dark:hover:bg-indigo-900/20 flex flex-col justify-between h-24"
-                  >
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-900 dark:text-white line-clamp-2 leading-tight">{product.name}</h4>
-                      <span className="text-[10px] text-gray-500 dark:text-zinc-400 font-medium uppercase tracking-wider block mt-1 line-clamp-1" title={product.vehicle_compatibility}>
-                        {product.vehicle_compatibility || product.brand || 'No Brand'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-end mt-2">
-                      <span className="text-xs font-medium text-gray-500 dark:text-zinc-400">{product.inventory?.[0]?.quantity || 0} in stock</span>
-                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">₹{product.selling_price}</span>
-                    </div>
-                  </div>
-                ))}
-                {filteredProducts.length === 0 && (
-                  <div className="col-span-full py-6 text-center text-sm text-gray-500 dark:text-zinc-400 border border-dashed border-gray-300 rounded-lg dark:border-zinc-700">
-                    No products found. Try adjusting filters.
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
-          <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 overflow-hidden flex flex-col">
-            <div className="overflow-x-auto flex-1">
+          {/* Product Quick-Select Grid if searching */}
+          {searchTerm.trim() !== '' && (
+            <div className="bg-white p-3 rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 max-h-48 overflow-y-auto">
+              <p className="text-xs font-semibold text-gray-500 mb-2 uppercase">Matching Products ({filteredProducts.length})</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {filteredProducts.slice(0, 8).map(prod => (
+                  <button
+                    key={prod.id}
+                    onClick={() => handleAddProductToBill(prod)}
+                    className="flex justify-between items-center p-2.5 border border-gray-100 hover:border-indigo-400 bg-gray-50 dark:bg-zinc-800/60 rounded-lg text-left transition-colors"
+                  >
+                    <div>
+                      <p className="font-medium text-sm text-gray-900 dark:text-white truncate">{prod.name}</p>
+                      <p className="text-xs text-gray-500">{prod.code || 'No code'}</p>
+                    </div>
+                    <span className="font-bold text-sm text-indigo-600 dark:text-indigo-400 ml-2">₹{prod.selling_price}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bill Items Table */}
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 overflow-hidden flex-1 flex flex-col min-h-[300px]">
+            <div className="flex-1 overflow-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-zinc-800">
-                <thead className="bg-gray-50 dark:bg-zinc-800/50">
+                <thead className="bg-gray-50 dark:bg-zinc-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400">Product</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400">Qty</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400">Price</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400">Total</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider dark:text-zinc-400">Action</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200 dark:bg-zinc-900 dark:divide-zinc-800">
                   {items.map((item, idx) => (
                     <tr key={idx}>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{item.name}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">
+                        {item.name}
+                        {item.code && <span className="block text-xs text-gray-500 font-normal">{item.code}</span>}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-zinc-400">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2">
                           <button 
                             onClick={() => {
-                              const newQty = item.quantity - 1;
-                              if (newQty <= 0) setItems(items.filter((_, i) => i !== idx));
-                              else setItems(items.map((it, i) => i === idx ? { ...it, quantity: newQty, total: newQty * it.price } : it));
+                              if (item.quantity > 1) {
+                                const newQty = item.quantity - 1;
+                                setItems(items.map((it, i) => i === idx ? { ...it, quantity: newQty, total: newQty * it.price } : it));
+                              } else {
+                                setItems(items.filter((_, i) => i !== idx));
+                              }
                             }}
                             className="w-7 h-7 flex items-center justify-center bg-gray-200 dark:bg-zinc-700 rounded-full hover:bg-gray-300 dark:hover:bg-zinc-600 text-gray-700 dark:text-zinc-200 transition-colors font-bold select-none touch-manipulation"
                           >-</button>
@@ -467,7 +599,20 @@ export default function Billing() {
         {/* Right Side: Customer & Totals */}
         <div className="flex flex-col space-y-4">
           <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Customer Details</h3>
+            <div className="flex justify-between items-center mb-3">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">Customer Details</h3>
+              <button 
+                type="button"
+                onClick={() => {
+                  setCustomerName('Walk-in Customer');
+                  setCustomerMobile('9999999999');
+                }}
+                className="text-xs px-2.5 py-1 bg-gray-100 hover:bg-gray-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-gray-700 dark:text-zinc-300 font-semibold rounded transition-colors"
+                title="Fill Walk-in Cash Customer"
+              >
+                ⚡ Walk-in / Cash
+              </button>
+            </div>
             <div className="space-y-3">
               <input type="text" placeholder="Mobile Number" value={customerMobile} onChange={e => setCustomerMobile(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-zinc-800 dark:border-zinc-700 dark:text-white" />
               <input type="text" placeholder="Customer Name" value={customerName} onChange={e => setCustomerName(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md dark:bg-zinc-800 dark:border-zinc-700 dark:text-white" />
@@ -507,14 +652,14 @@ export default function Billing() {
               <button 
                 onClick={() => { setPaymentMethod('Cash'); handleCreateInvoice(); }}
                 disabled={isSubmitting}
-                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 shadow-sm disabled:opacity-50"
+                className="w-full py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 shadow-sm disabled:opacity-50 transition-colors"
               >
                 {isSubmitting ? 'Processing...' : 'Complete Payment (Cash)'}
               </button>
               <button 
                 onClick={() => { setPaymentMethod('UPI'); handleCreateInvoice(); }}
                 disabled={isSubmitting}
-                className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-sm disabled:opacity-50"
+                className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-sm disabled:opacity-50 transition-colors"
               >
                 {isSubmitting ? 'Processing...' : 'Complete Payment (UPI)'}
               </button>
@@ -529,24 +674,29 @@ export default function Billing() {
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
             <div className="p-6 text-center">
               <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                <CheckCircle2 className="w-8 h-8" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Invoice Created!</h3>
-              <p className="text-gray-500 dark:text-zinc-400 mb-6">
+              <p className="text-gray-500 dark:text-zinc-400 mb-2">
                 Receipt {lastInvoice.invoice_number} has been generated successfully.
               </p>
+              {lastInvoice.isOffline && (
+                <div className="mb-4 inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  ⚡ Saved Offline (Will automatically sync to server when connected)
+                </div>
+              )}
               
               <div className="space-y-3">
                 <button 
                   onClick={() => handleWhatsAppShare(lastInvoice)}
-                  className="w-full flex items-center justify-center px-4 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg font-medium transition-colors"
+                  className="w-full flex items-center justify-center px-4 py-3 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-lg font-medium transition-colors shadow-sm"
                 >
                   <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                   Share on WhatsApp
                 </button>
                 <button 
                   onClick={() => handlePrint(lastInvoice)}
-                  className="w-full flex items-center justify-center px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+                  className="w-full flex items-center justify-center px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors shadow-sm"
                 >
                   <Printer className="w-5 h-5 mr-2" />
                   Print Receipt
@@ -630,4 +780,3 @@ export default function Billing() {
     </div>
   );
 }
-

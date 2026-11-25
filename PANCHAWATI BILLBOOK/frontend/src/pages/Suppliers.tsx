@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X } from 'lucide-react';
+import { Search, Plus, X, Send } from 'lucide-react';
 import api from '../api';
+import WhatsAppOrderModal from '../components/WhatsAppOrderModal';
 
 export default function Suppliers() {
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -11,6 +12,7 @@ export default function Suppliers() {
   const [formData, setFormData] = useState({ name: '', mobile: '', email: '', address: '', gst_number: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [whatsAppSupplier, setWhatsAppSupplier] = useState<any | null>(null);
 
   const fetchSuppliers = () => {
     api.get(`/billing/suppliers`)
@@ -47,24 +49,35 @@ export default function Suppliers() {
   return (
     <div className="md:h-full flex flex-col space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Suppliers</h2>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Add Supplier
-        </button>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Wholesalers & Suppliers</h2>
+          <p className="text-sm text-gray-500 dark:text-zinc-400">Manage vendor details and dispatch purchase orders via WhatsApp</p>
+        </div>
+        <div className="flex space-x-3">
+          <button 
+            onClick={() => setWhatsAppSupplier({})}
+            className="flex items-center px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold rounded-lg shadow-sm transition-colors text-sm"
+          >
+            <Send className="mr-2 h-4 w-4" /> New WhatsApp Order
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm text-sm font-semibold"
+          >
+            <Plus className="mr-2 h-4 w-4" /> Add Supplier
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 overflow-hidden flex-1 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-zinc-800 flex justify-between items-center bg-gray-50 dark:bg-zinc-800/50">
-          <div className="relative w-64">
+          <div className="relative w-72">
             <input 
               type="text" 
-              placeholder="Search suppliers..." 
+              placeholder="Search suppliers by name, mobile, GST..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-md border border-gray-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" 
+              className="w-full pl-10 pr-4 py-2 rounded-md border border-gray-300 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm" 
             />
             <Search className="absolute left-3 top-2.5 text-gray-400 h-5 w-5" />
           </div>
@@ -78,17 +91,28 @@ export default function Suppliers() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Number</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payables</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">WhatsApp Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200 dark:bg-zinc-900 dark:divide-zinc-800">
                 {filteredSuppliers.length === 0 ? (
-                  <tr><td colSpan={4} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">No suppliers found.</td></tr>
+                  <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">No suppliers found.</td></tr>
                 ) : filteredSuppliers.map((s, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{s.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{s.mobile}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{s.gst_number || '-'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-orange-600 dark:text-orange-400">₹{s.outstanding_payable || 0}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-right">
+                      <button 
+                        onClick={() => setWhatsAppSupplier(s)}
+                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold bg-[#25D366]/10 text-[#128C7E] dark:text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                        title="Create purchase order on WhatsApp"
+                      >
+                        <Send className="w-3.5 h-3.5 mr-1.5" />
+                        Order on WhatsApp
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -149,11 +173,17 @@ export default function Suppliers() {
                   rows={2}
                 />
               </div>
-              <div className="pt-4 flex justify-end space-x-3">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-zinc-800 rounded-md">
+              <div className="pt-2 flex justify-end space-x-3">
+                <button 
+                  type="button" onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={submitting} className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md disabled:opacity-50">
+                <button 
+                  type="submit" disabled={submitting}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-md text-sm font-medium hover:bg-indigo-700 disabled:opacity-50"
+                >
                   {submitting ? 'Saving...' : 'Save Supplier'}
                 </button>
               </div>
@@ -161,7 +191,15 @@ export default function Suppliers() {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Order Modal */}
+      {whatsAppSupplier && (
+        <WhatsAppOrderModal 
+          isOpen={!!whatsAppSupplier}
+          onClose={() => setWhatsAppSupplier(null)}
+          initialSupplier={whatsAppSupplier.id ? whatsAppSupplier : undefined}
+        />
+      )}
     </div>
   );
 }
-

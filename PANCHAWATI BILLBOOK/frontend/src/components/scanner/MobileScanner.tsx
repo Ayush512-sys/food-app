@@ -3,6 +3,7 @@ import { Html5Qrcode } from 'html5-qrcode';
 import { ProductActionModal } from './ProductActionModal';
 import api from '../../api';
 import { useAuthStore } from '../../store/useAuthStore';
+import { useDataStore } from '../../store/useDataStore';
 
 export const MobileScanner = ({ onClose, onScan, continuous = false }: { onClose: () => void; onScan?: (barcode: string) => void; continuous?: boolean }) => {
   const [scannedProduct, setScannedProduct] = useState<any | null>(null);
@@ -109,7 +110,25 @@ export const MobileScanner = ({ onClose, onScan, continuous = false }: { onClose
 
     try {
       setError(null);
-      const res = await api.get(`/inventory/stock/scan/${barcode}`);
+      let data = null;
+      if (navigator.onLine) {
+        try {
+          const apiRes = await api.get(`/inventory/stock/scan/${barcode}`);
+          data = apiRes.data;
+        } catch (e) {
+          // Fallback to offline lookup
+        }
+      }
+      if (!data) {
+        const clean = barcode.trim().toLowerCase();
+        data = useDataStore.getState().products.find(p => 
+          p.code?.toLowerCase() === clean || 
+          p.barcode?.toLowerCase() === clean ||
+          p.sku?.toLowerCase() === clean ||
+          p.id?.toString() === clean
+        );
+      }
+      const res = { data };
       if (res.data) {
         setIsScanning(false);
         setScannedProduct(res.data);

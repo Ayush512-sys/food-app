@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, X, ArrowUpRight, ArrowDownRight, FileText, Phone, Mail, MapPin, ArrowLeft } from 'lucide-react';
+import { Search, Plus, X, ArrowUpRight, ArrowDownRight, FileText, Phone, Mail, MapPin, ArrowLeft, Send } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
@@ -24,7 +24,6 @@ export default function Customers() {
   };
 
   const fetchCustomerInvoices = (customerId: number) => {
-    // get all invoices and filter
     api.get(`/sales/invoices`)
       .then(res => {
          const filtered = res.data.filter((inv: any) => inv.customer_id === customerId);
@@ -42,6 +41,24 @@ export default function Customers() {
       fetchCustomerInvoices(selectedCustomer.id);
     }
   }, [selectedCustomer]);
+
+  const handleSendPaymentReminder = () => {
+    if (!selectedCustomer) return;
+    const phone = selectedCustomer.mobile ? selectedCustomer.mobile.replace(/[^0-9]/g, '') : '';
+    const targetPhone = phone.length === 10 ? `91${phone}` : phone;
+
+    let msg = `Namaste *${selectedCustomer.name}* ji,\n\n`;
+    msg += `This is a gentle payment reminder from *Panchawati Auto Spares & Services* regarding your pending balance.\n\n`;
+    msg += `*Outstanding Balance Due:* ₹${(selectedCustomer.outstanding_balance || 0).toLocaleString('en-IN')}\n\n`;
+    msg += `Please settle the pending balance at your earliest convenience via UPI or Cash at our store.\n`;
+    msg += `If you have already paid, please ignore this message.\n\n`;
+    msg += `Thank you for your business! 🙏\n`;
+    msg += `*Panchawati BillBook*`;
+
+    const encoded = encodeURIComponent(msg);
+    const url = targetPhone ? `https://wa.me/${targetPhone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+    window.open(url, '_blank');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +79,7 @@ export default function Customers() {
 
   const filteredCustomers = customers.filter(c => 
     c.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.mobile.includes(searchTerm)
+    (c.mobile && c.mobile.includes(searchTerm))
   );
 
   return (
@@ -91,14 +108,14 @@ export default function Customers() {
           <div className="p-4 border-b border-gray-200 dark:border-zinc-800">
             <button 
               onClick={() => setIsModalOpen(true)}
-              className="w-full flex justify-center items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 mb-4"
+              className="w-full flex justify-center items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 mb-4 font-medium transition-colors"
             >
               <Plus className="mr-2 h-4 w-4" /> Create New Party
             </button>
             <div className="relative">
               <input 
                 type="text" 
-                placeholder="Search Party..." 
+                placeholder="Search Party by name or mobile..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 rounded-md border border-gray-300 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" 
@@ -116,7 +133,7 @@ export default function Customers() {
                 <div className="flex justify-between items-start">
                   <div>
                     <h4 className="font-bold text-gray-900 dark:text-white">{c.name}</h4>
-                    <span className="text-xs text-gray-500 dark:text-zinc-400 mt-1 block">Customer</span>
+                    <span className="text-xs text-gray-500 dark:text-zinc-400 mt-1 block">{c.mobile || 'No Phone'}</span>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-gray-900 dark:text-white">₹{c.outstanding_balance || 0}</div>
@@ -147,15 +164,31 @@ export default function Customers() {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 mt-2 text-sm text-gray-500 dark:text-zinc-400">
                       {selectedCustomer.mobile && <span className="flex items-center mt-1 sm:mt-0"><Phone className="h-4 w-4 mr-1" /> {selectedCustomer.mobile}</span>}
                       {selectedCustomer.email && <span className="flex items-center mt-1 sm:mt-0"><Mail className="h-4 w-4 mr-1" /> {selectedCustomer.email}</span>}
+                      {selectedCustomer.outstanding_balance > 0 && (
+                        <span className="text-red-600 font-semibold mt-1 sm:mt-0">
+                          Due: ₹{selectedCustomer.outstanding_balance.toLocaleString('en-IN')}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={() => navigate(`/sales?customer_id=${selectedCustomer.id}`)}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 md:px-5 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center w-full sm:w-auto justify-center"
-                >
-                  <FileText className="h-4 w-4 mr-2" /> Create Sales Invoice
-                </button>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                  {selectedCustomer.outstanding_balance > 0 && (
+                    <button 
+                      onClick={handleSendPaymentReminder}
+                      className="bg-[#25D366] hover:bg-[#128C7E] text-white px-4 py-2 rounded-lg font-semibold shadow-sm transition-colors flex items-center justify-center text-sm"
+                      title="Send WhatsApp Payment Reminder to this customer"
+                    >
+                      <Send className="h-4 w-4 mr-2" /> WhatsApp Reminder
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => navigate(`/sales?customer_id=${selectedCustomer.id}`)}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 md:px-5 py-2 rounded-lg font-medium shadow-sm transition-colors flex items-center justify-center text-sm"
+                  >
+                    <FileText className="h-4 w-4 mr-2" /> Create Sales Invoice
+                  </button>
+                </div>
               </div>
 
               {/* Tabs */}
@@ -261,7 +294,30 @@ export default function Customers() {
                 )}
                 
                 {activeTab === 'Profile' && (
-                  <div className="text-gray-500 text-center p-8">Profile details coming soon.</div>
+                  <div className="p-6 bg-white dark:bg-zinc-900 rounded-lg border border-gray-200 dark:border-zinc-800 space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase font-semibold">Customer Name</span>
+                        <p className="text-base font-medium text-gray-900 dark:text-white mt-1">{selectedCustomer.name}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase font-semibold">Mobile Number</span>
+                        <p className="text-base font-medium text-gray-900 dark:text-white mt-1">{selectedCustomer.mobile || 'None'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase font-semibold">Email</span>
+                        <p className="text-base font-medium text-gray-900 dark:text-white mt-1">{selectedCustomer.email || 'None'}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500 uppercase font-semibold">Outstanding Balance</span>
+                        <p className="text-base font-bold text-red-600 mt-1">₹{selectedCustomer.outstanding_balance || 0}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-xs text-gray-500 uppercase font-semibold">Address</span>
+                        <p className="text-base font-medium text-gray-900 dark:text-white mt-1">{selectedCustomer.address || 'None provided'}</p>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </>
@@ -336,4 +392,3 @@ export default function Customers() {
     </div>
   );
 }
-

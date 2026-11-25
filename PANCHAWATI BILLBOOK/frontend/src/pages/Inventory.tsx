@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, MoreVertical, Settings, FileText, ChevronDown, HelpCircle, Tag, AlertCircle, ArrowUpDown, TrendingUp, ArrowLeft, Edit, Trash2, Printer, Activity, X, FolderTree } from 'lucide-react';
+import { Search, Plus, MoreVertical, Settings, FileText, ChevronDown, HelpCircle, Tag, AlertCircle, ArrowUpDown, TrendingUp, ArrowLeft, Edit, Trash2, Printer, Activity, X, FolderTree, Send } from 'lucide-react';
+import WhatsAppOrderModal from '../components/WhatsAppOrderModal';
 import axios from 'axios';
 import { useAuthStore } from '../store/useAuthStore';
 import { useDataStore } from '../store/useDataStore';
@@ -13,7 +14,7 @@ import { socket } from '../socket';
 import api from '../api';
 
 export default function Inventory() {
-  const { products, setProducts, categories, setCategories } = useDataStore();
+  const { products, setProducts, categories, setCategories, loadOfflineData } = useDataStore();
   const [loading, setLoading] = useState(products.length === 0);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('');
@@ -23,6 +24,8 @@ export default function Inventory() {
   const [selectedItemIds, setSelectedItemIds] = useState<Set<number>>(new Set());
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [whatsAppOrderItems, setWhatsAppOrderItems] = useState<any[]>([]);
   const [page, setPage] = useState(1);
   
   // Split view state
@@ -36,6 +39,7 @@ export default function Inventory() {
 
   const token = useAuthStore(state => state.token);
 
+
   useEffect(() => {
     socket.connect();
 
@@ -48,6 +52,7 @@ export default function Inventory() {
       socket.disconnect();
     };
   }, [token]);
+
 
   useEffect(() => {
     if (activeTab === 'Stock Details' && selectedProduct) {
@@ -65,6 +70,7 @@ export default function Inventory() {
       fetchHistory();
     }
   }, [activeTab, selectedProduct, token]);
+
 
   useEffect(() => {
     if (selectedProduct) {
@@ -92,11 +98,13 @@ export default function Inventory() {
         return prevSelected;
       });
     } catch (error) {
-      console.error('Failed to fetch data', error);
+      console.warn('Failed to fetch data from server, loading from offline cache...', error);
+      await loadOfflineData();
     } finally {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     fetchData();
@@ -116,6 +124,21 @@ export default function Inventory() {
        alert(`Scanned item not found in inventory!`);
     }
   });
+
+  const handleOpenLowStockWhatsAppOrder = () => {
+    const lowStockItems = products.filter(p => {
+      const totalQty = p.inventory?.reduce((sum: number, inv: any) => sum + inv.quantity, 0) || 0;
+      return totalQty <= p.min_stock;
+    });
+
+    if (lowStockItems.length === 0) {
+      alert('All items currently have sufficient stock! You can still search and select any items to order inside the window.');
+      setWhatsAppOrderItems([]);
+    } else {
+      setWhatsAppOrderItems(lowStockItems);
+    }
+    setIsWhatsAppModalOpen(true);
+  };
 
   // Derived available brands based on selected category filter
   const availableBrands = Array.from(new Set(
@@ -142,6 +165,7 @@ export default function Inventory() {
   });
 
   // Reset page when filters change
+
   useEffect(() => {
     setPage(1);
   }, [searchTerm, selectedCategoryFilter, showLowStockOnly]);
@@ -473,7 +497,6 @@ export default function Inventory() {
                     </div>
                   </div>
                 </div>
-
               </div>
             )}
             
@@ -522,6 +545,7 @@ export default function Inventory() {
         </div>
 
         <AdjustStockModal isOpen={isAdjustStockOpen} onClose={() => setIsAdjustStockOpen(false)} onStockAdjusted={fetchData} product={selectedProduct} />
+        <WhatsAppOrderModal isOpen={isWhatsAppModalOpen} onClose={() => setIsWhatsAppModalOpen(false)} initialItems={whatsAppOrderItems} />
         <EditItemModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onItemEdited={fetchData} product={selectedProduct} />
       </div>
     );
@@ -533,7 +557,16 @@ export default function Inventory() {
       {/* Desktop Header */}
       <div className="hidden md:flex flex-none justify-between items-center px-6 py-4 bg-white dark:bg-zinc-900 border-b border-gray-200 dark:border-zinc-800 sticky top-0 z-20 shadow-sm">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white uppercase tracking-tight">Stock Management</h1>
-        <div className="flex space-x-4">
+        <div className="flex items-center space-x-3">
+          <button 
+            className="flex items-center px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-md text-sm font-semibold transition-colors shadow-sm"
+            onClick={handleOpenLowStockWhatsAppOrder}
+            title="Create WhatsApp Purchase Order for Low Stock"
+          >
+            <Send className="w-4 h-4 mr-2" />
+            WhatsApp Reorder
+          </button>
+          
           <button 
             className="flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors shadow-sm"
             onClick={() => setIsCreateModalOpen(true)}
@@ -557,6 +590,12 @@ export default function Inventory() {
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Items</h1>
           <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleOpenLowStockWhatsAppOrder}
+              className="flex items-center px-2.5 py-1.5 bg-[#25D366] text-white rounded-md text-xs font-semibold shadow-sm"
+            >
+              <Send className="w-3 h-3 mr-1" /> Reorder
+            </button>
             <button className="flex items-center px-3 py-1.5 border border-indigo-600 text-indigo-600 rounded-md text-xs font-medium dark:border-indigo-500 dark:text-indigo-400">
               <Tag className="w-3 h-3 mr-1" /> Manage Offer
             </button>
@@ -925,7 +964,12 @@ export default function Inventory() {
           onCategoriesChanged={fetchData}
         />
       )}
+
+      <WhatsAppOrderModal 
+        isOpen={isWhatsAppModalOpen} 
+        onClose={() => setIsWhatsAppModalOpen(false)} 
+        initialItems={whatsAppOrderItems} 
+      />
     </div>
   );
 }
-

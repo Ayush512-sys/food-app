@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, ArrowLeft, Trash2, Tag, FileText } from 'lucide-react';
+import { Search, Plus, ArrowLeft, Trash2, Tag, FileText, Send } from 'lucide-react';
 import api from '../api';
+import WhatsAppOrderModal from '../components/WhatsAppOrderModal';
 
 export default function Purchases() {
   const [view, setView] = useState<'list' | 'add'>('list');
   const [bills, setBills] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   
   // Add Form State
   const [selectedSupplier, setSelectedSupplier] = useState('');
@@ -33,6 +35,33 @@ export default function Purchases() {
 
   const fetchBills = () => {
     api.get('/purchases/bills').then(res => setBills(res.data)).catch(console.error);
+  };
+
+  const handleSharePurchaseBillOnWhatsApp = (bill: any) => {
+    const supplierName = bill.supplier?.name || 'Wholesaler / Supplier';
+    const supplierMobile = bill.supplier?.mobile ? bill.supplier.mobile.replace(/[^0-9]/g, '') : '';
+    const targetPhone = supplierMobile.length === 10 ? `91${supplierMobile}` : supplierMobile;
+    
+    let msg = `*PURCHASE BILL / ORDER RECEIPT*\n`;
+    msg += `--------------------------------\n`;
+    msg += `*Supplier:* ${supplierName}\n`;
+    msg += `*Invoice No:* ${bill.invoice_number}\n`;
+    msg += `*Date:* ${new Date(bill.date).toLocaleDateString('en-GB')}\n`;
+    msg += `--------------------------------\n`;
+    msg += `*Items Details:*\n`;
+    if (bill.items && bill.items.length > 0) {
+      bill.items.forEach((it: any, idx: number) => {
+        const name = it.product?.name || it.name || `Item #${idx + 1}`;
+        msg += `${idx + 1}. ${name} - ${it.quantity} x ₹${it.unit_price} = ₹${it.total_amount || it.line_total || (it.quantity * it.unit_price)}\n`;
+      });
+    }
+    msg += `--------------------------------\n`;
+    msg += `*Total Amount:* ₹${bill.total_amount}\n`;
+    msg += `\n_From: Panchawati BillBook_\n`;
+    
+    const encoded = encodeURIComponent(msg);
+    const url = targetPhone ? `https://wa.me/${targetPhone}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+    window.open(url, '_blank');
   };
 
   const handleAddSupplier = async (e: React.FormEvent) => {
@@ -309,14 +338,23 @@ export default function Purchases() {
 
   return (
     <div className="md:h-full flex flex-col space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Purchase Bills</h2>
-        <button 
-          onClick={() => setView('add')}
-          className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-        >
-          <Plus className="mr-2 h-4 w-4" /> Add Purchase Bill
-        </button>
+        <div className="flex items-center space-x-3 w-full sm:w-auto">
+          <button 
+            onClick={() => setIsWhatsAppModalOpen(true)}
+            className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-[#25D366] hover:bg-[#128C7E] text-white rounded-md text-sm font-semibold transition-colors shadow-sm"
+            title="Create WhatsApp Purchase Order to Wholesaler"
+          >
+            <Send className="mr-2 h-4 w-4" /> WhatsApp Order
+          </button>
+          <button 
+            onClick={() => setView('add')}
+            className="flex-1 sm:flex-none flex items-center justify-center px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm font-medium shadow-sm transition-colors"
+          >
+            <Plus className="mr-2 h-4 w-4" /> Add Purchase Bill
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 overflow-hidden flex-1 flex flex-col">
@@ -329,11 +367,12 @@ export default function Purchases() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Supplier</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Items Count</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200 dark:bg-zinc-900 dark:divide-zinc-800">
               {bills.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">No purchase bills found.</td></tr>
+                <tr><td colSpan={6} className="px-6 py-12 text-center text-gray-500 dark:text-gray-400">No purchase bills found.</td></tr>
               ) : bills.map((bill, idx) => (
                 <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-zinc-800/50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -354,12 +393,22 @@ export default function Purchases() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900 dark:text-white">
                     ₹{bill.total_amount}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <button 
+                      onClick={() => handleSharePurchaseBillOnWhatsApp(bill)}
+                      className="inline-flex items-center px-2.5 py-1.5 bg-[#25D366] hover:bg-[#128C7E] text-white rounded text-xs font-semibold shadow-sm transition-colors"
+                      title="Share this purchase order with supplier on WhatsApp"
+                    >
+                      <Send className="w-3.5 h-3.5 mr-1" /> WhatsApp
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </div>
+      
       {/* Add Supplier Modal */}
       {isAddSupplierModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -390,7 +439,12 @@ export default function Purchases() {
           </div>
         </div>
       )}
+
+      {/* WhatsApp Purchase Order Modal */}
+      <WhatsAppOrderModal 
+        isOpen={isWhatsAppModalOpen} 
+        onClose={() => setIsWhatsAppModalOpen(false)} 
+      />
     </div>
   );
 }
-

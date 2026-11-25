@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
+import { useDataStore } from '../store/useDataStore';
 import { X } from 'lucide-react';
 import api from '../api';
+import { queueOfflineAdjustment } from '../utils/offlineStorage';
+import { useSyncStore } from '../utils/offlineSync';
 
 interface AdjustStockModalProps {
   isOpen: boolean;
@@ -18,27 +21,22 @@ export default function AdjustStockModal({ isOpen, onClose, onStockAdjusted, pro
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [locationId, setLocationId] = useState('');
+  const [locationId, setLocationId] = useState('1');
   const [locations, setLocations] = useState<any[]>([]);
 
   useEffect(() => {
     if (isOpen) {
       const fetchLocations = async () => {
         try {
-          const locRes = await api.get(`/inventory/locations`);
-          setLocations(locRes.data);
-          if (locRes.data.length > 0) {
-            setLocationId(locRes.data[0].id.toString());
-          } else {
-            const newLoc = await api.post(`/inventory/locations`, {
-              name: 'Main Godown',
-              type: 'Main Shop'
-            });
-            setLocations([newLoc.data]);
-            setLocationId(newLoc.data.id.toString());
+          if (navigator.onLine) {
+            const locRes = await api.get(`/inventory/locations`);
+            setLocations(locRes.data);
+            if (locRes.data.length > 0) {
+              setLocationId(locRes.data[0].id.toString());
+            }
           }
         } catch (e) {
-          console.error("Location fetch failed", e);
+          console.warn("Location fetch failed, using default location", e);
         }
       };
       fetchLocations();
@@ -51,20 +49,74 @@ export default function AdjustStockModal({ isOpen, onClose, onStockAdjusted, pro
     e.preventDefault();
     setLoading(true);
     setError('');
+
+    const qty = parseInt(formData.quantity) || 0;
+    if (qty <= 0) {
+      setError('Please enter a valid quantity greater than 0');
+      setLoading(false);
+      return;
+    }
+
+    const delta = formData.action === 'Increase' ? qty : -qty;
     
+    if (!navigator.onLine) {
+      // Offline mode
+      try {
+        await queueOfflineAdjustment({
+          product_id: product.id,
+          product_name: product.name,
+          location_id: parseInt(locationId) || 1,
+          quantity: qty,
+          action: formData.action,
+          reason: formData.reason
+        });
+
+        useDataStore.getState().adjustProductStockLocally(product.id, delta);
+        await useSyncStore.getState().updatePendingCount();
+
+        onStockAdjusted();
+        onClose();
+      } catch (err: any) {
+        setError('Failed to save adjustment offline: ' + err.message);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       await api.post(`/inventory/stock/adjust`, {
         product_id: product.id,
-        location_id: parseInt(locationId),
-        quantity: parseInt(formData.quantity) || 0,
+        location_id: parseInt(locationId) || 1,
+        quantity: qty,
         action: formData.action,
         reason: formData.reason
       });
-      
+
+      useDataStore.getState().adjustProductStockLocally(product.id, delta);
       onStockAdjusted();
       onClose();
     } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to adjust stock');
+      // If network failed midway, fall back to offline queue!
+      console.warn('Network adjustment failed, saving offline:', err);
+      try {
+        await queueOfflineAdjustment({
+          product_id: product.id,
+          product_name: product.name,
+          location_id: parseInt(locationId) || 1,
+          quantity: qty,
+          action: formData.action,
+          reason: formData.reason
+        });
+
+        useDataStore.getState().adjustProductStockLocally(product.id, delta);
+        await useSyncStore.getState().updatePendingCount();
+
+        onStockAdjusted();
+        onClose();
+      } catch (queueErr: any) {
+        setError(err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to adjust stock');
+      }
     } finally {
       setLoading(false);
     }
@@ -98,7 +150,7 @@ export default function AdjustStockModal({ isOpen, onClose, onStockAdjusted, pro
             </div>
             
             <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Quantity ({product?.unit})</label>
+              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Quantity ({product?.unit || 'Units'})</label>
               <input
                 type="number"
                 min="1"

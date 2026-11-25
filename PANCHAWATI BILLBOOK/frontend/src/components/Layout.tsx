@@ -1,24 +1,65 @@
 import { Outlet, Navigate, Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
-import { Package, LayoutDashboard, Users, FileText, Settings, LogOut, ScanLine, Menu, X, Receipt } from 'lucide-react';
+import { useSyncStore } from '../utils/offlineSync';
+import { useDataStore } from '../store/useDataStore';
+import { Package, LayoutDashboard, Users, FileText, Settings, LogOut, ScanLine, Menu, X, Receipt, RefreshCw, CloudOff } from 'lucide-react';
 import { MobileScanner } from './scanner/MobileScanner';
 
 export default function Layout() {
   const { user, logout } = useAuthStore();
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { isOnline, isSyncing, pendingCount, syncAll, updatePendingCount, syncMessage } = useSyncStore();
+  const { loadOfflineData, products } = useDataStore();
+
+  useEffect(() => {
+    updatePendingCount();
+    if (products.length === 0) {
+      loadOfflineData();
+    }
+  }, []);
 
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  const renderSyncPill = () => (
+    <button
+      onClick={() => syncAll()}
+      disabled={isSyncing}
+      className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-semibold cursor-pointer select-none transition-all ${
+        !isOnline
+          ? 'bg-amber-100 text-amber-800 border border-amber-300 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-700'
+          : pendingCount > 0
+          ? 'bg-indigo-100 text-indigo-800 border border-indigo-300 animate-pulse dark:bg-indigo-900/40 dark:text-indigo-300'
+          : 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:bg-emerald-900/40 dark:text-emerald-300'
+      }`}
+      title="Click to sync offline bills & stock"
+    >
+      <span className={`w-2 h-2 rounded-full ${
+        !isOnline ? 'bg-amber-500' : isSyncing ? 'bg-indigo-500 animate-ping' : pendingCount > 0 ? 'bg-indigo-600' : 'bg-emerald-500'
+      }`} />
+      <span>
+        {!isOnline
+          ? (pendingCount > 0 ? `${pendingCount} Queued (Offline)` : 'Offline')
+          : isSyncing
+          ? 'Syncing...'
+          : pendingCount > 0
+          ? `${pendingCount} Pending Sync`
+          : 'Online'}
+      </span>
+      {isSyncing && <RefreshCw className="h-3 w-3 animate-spin ml-1" />}
+    </button>
+  );
+
   return (
     <div className="flex h-[100dvh] w-full bg-gray-100 dark:bg-zinc-950 overflow-hidden">
       {/* Sidebar */}
       <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 hidden md:flex flex-col">
-        <div className="h-16 flex items-center px-6 border-b border-gray-200 dark:border-zinc-800">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 dark:border-zinc-800">
           <h1 className="text-xl font-bold dark:text-white">BillBook</h1>
+          {renderSyncPill()}
         </div>
         <nav className="flex-1 overflow-y-auto py-4">
           <ul className="space-y-1 px-3">
@@ -26,6 +67,18 @@ export default function Layout() {
               <Link to="/" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white">
                 <LayoutDashboard className="mr-3 h-5 w-5 text-gray-400" />
                 Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link to="/billing" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <Receipt className="mr-3 h-5 w-5 text-gray-400" />
+                POS / Billing
+              </Link>
+            </li>
+            <li>
+              <Link to="/inventory" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white">
+                <Package className="mr-3 h-5 w-5 text-gray-400" />
+                Inventory & Stock
               </Link>
             </li>
             <li>
@@ -38,12 +91,6 @@ export default function Layout() {
               <Link to="/suppliers" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white">
                 <Users className="mr-3 h-5 w-5 text-gray-400" />
                 Suppliers
-              </Link>
-            </li>
-            <li>
-              <Link to="/inventory" className="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:text-gray-900 hover:bg-gray-50 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-white">
-                <Package className="mr-3 h-5 w-5 text-gray-400" />
-                Inventory
               </Link>
             </li>
             <li>
@@ -100,7 +147,10 @@ export default function Layout() {
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden pb-16 md:pb-0 relative">
         <header className="h-16 flex-none flex items-center justify-between px-4 bg-white border-b border-gray-200 dark:bg-zinc-900 dark:border-zinc-800 md:hidden z-10 relative">
-          <h1 className="text-xl font-bold dark:text-white">BillBook</h1>
+          <div className="flex items-center space-x-2">
+            <h1 className="text-xl font-bold dark:text-white">BillBook</h1>
+            {renderSyncPill()}
+          </div>
           <div className="flex items-center space-x-2">
             <button onClick={logout} className="p-2 text-gray-400 hover:text-gray-500">
                <LogOut className="h-5 w-5" />
@@ -126,6 +176,14 @@ export default function Layout() {
                   <h1 className="text-xl font-bold dark:text-white">BillBook Menu</h1>
                 </div>
                 <nav className="mt-5 px-2 space-y-1">
+                  <Link to="/billing" onClick={() => setIsMobileMenuOpen(false)} className="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-900 hover:bg-gray-50 hover:text-gray-900 dark:text-zinc-100 dark:hover:bg-zinc-800">
+                    <Receipt className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
+                    POS / Billing
+                  </Link>
+                  <Link to="/inventory" onClick={() => setIsMobileMenuOpen(false)} className="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-900 hover:bg-gray-50 hover:text-gray-900 dark:text-zinc-100 dark:hover:bg-zinc-800">
+                    <Package className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
+                    Inventory & Stock
+                  </Link>
                   <Link to="/customers" onClick={() => setIsMobileMenuOpen(false)} className="group flex items-center px-2 py-2 text-base font-medium rounded-md text-gray-900 hover:bg-gray-50 hover:text-gray-900 dark:text-zinc-100 dark:hover:bg-zinc-800">
                     <Users className="mr-4 h-6 w-6 text-gray-400 group-hover:text-gray-500" />
                     Customers
